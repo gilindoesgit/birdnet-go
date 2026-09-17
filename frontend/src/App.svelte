@@ -63,7 +63,6 @@
   let SoundscapePage = $state<Component | null>(null);
   let ReviewPage = $state<Component | null>(null);
   let Species = $state<Component | null>(null);
-  let Search = $state<Component | null>(null);
   let About = $state<Component | null>(null);
   let Help = $state<Component | null>(null);
   let ReportBug = $state<Component | null>(null);
@@ -217,7 +216,6 @@
       titleKey: 'pageTitle.analyticsReview',
       component: 'analytics-review',
     },
-    { route: 'search', page: 'search', titleKey: 'navigation.search', component: 'search' },
     {
       route: 'detections',
       page: 'detections',
@@ -341,12 +339,6 @@
           if (!Species) {
             const module = await import('./lib/desktop/features/analytics/pages/Species.svelte');
             Species = module.default;
-          }
-          break;
-        case 'search':
-          if (!Search) {
-            const module = await import('./lib/desktop/views/Search.svelte');
-            Search = module.default;
           }
           break;
         case 'about':
@@ -491,7 +483,6 @@
     [uiPath('analytics', 'weather')]: findRouteConfig('analytics-weather'),
     [uiPath('analytics', 'soundscape')]: findRouteConfig('analytics-soundscape'),
     [uiPath('analytics', 'review')]: findRouteConfig('analytics-review'),
-    [uiPath('search')]: findRouteConfig('search'),
     [uiPath('detections')]: findRouteConfig('detections'),
     [uiPath('about')]: findRouteConfig('about'),
     [uiPath('help')]: findRouteConfig('help'),
@@ -553,6 +544,16 @@
     );
     if (analyticsRedirect) {
       navigation.redirect(analyticsRedirect);
+      return;
+    }
+
+    // The standalone search page was merged into the detections view, which now
+    // carries the filter panel. Redirect rather than alias so there is one
+    // canonical URL for a filtered list, while existing bookmarks keep working.
+    // The query string carries the filters, so it must survive the hop.
+    if (path === uiPath('search')) {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      navigation.redirect(`${uiPath('detections')}${search}`);
       return;
     }
 
@@ -871,8 +872,6 @@
       {@render renderRoute(ReviewPage)}
     {:else if currentRoute === 'species'}
       {@render renderRoute(Species)}
-    {:else if currentRoute === 'search'}
-      {@render renderRoute(Search)}
     {:else if currentRoute === 'about'}
       {@render renderRoute(About)}
     {:else if currentRoute === 'help'}
