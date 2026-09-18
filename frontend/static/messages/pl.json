@@ -550,6 +550,10 @@
       "verifiedStatus": "Status Weryfikacji",
       "lockedStatus": "Status Blokady",
       "timeOfDay": "Pora Dnia",
+      "hourRange": "Godzina doby",
+      "hourRangeHelp": "Filtruj detekcje według godziny zegarowej, niezależnie od wschodu i zachodu słońca (puste = wszystkie godziny)",
+      "hourStart": "Najwcześniejsza godzina",
+      "hourEnd": "Najpóźniejsza godzina",
       "source": "Źródło dźwięku"
     },
     "advancedFilters": "Zaawansowane Filtry",
@@ -571,6 +575,9 @@
       "night": "Tylko Noc",
       "sunrise": "Wschód Słońca +/- 30min",
       "sunset": "Zachód Słońca +/- 30min"
+    },
+    "hourOptions": {
+      "any": "Dowolna godzina"
     },
     "sourceOptions": {
       "any": "Wszystkie źródła"
@@ -620,7 +627,8 @@
     },
     "errors": {
       "searchFailed": "Wyszukiwanie nie powiodło się: {error}",
-      "minMaxConfidence": "Minimalna pewność nie może być większa niż maksymalna pewność."
+      "minMaxConfidence": "Minimalna pewność nie może być większa niż maksymalna pewność.",
+      "minMaxHour": "Najwcześniejsza godzina nie może być późniejsza niż najpóźniejsza godzina."
     },
     "pagination": {
       "page": "Strona {current} z {total}",

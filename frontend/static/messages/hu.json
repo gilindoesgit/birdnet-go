@@ -550,6 +550,10 @@
       "verifiedStatus": "Ellenőrzött állapot",
       "lockedStatus": "Zárolt állapot",
       "timeOfDay": "Napszak",
+      "hourRange": "Napszak (óra)",
+      "hourRangeHelp": "Észlelések szűrése óra szerint, a napkeltétől és napnyugtától függetlenül (üresen hagyva minden óra)",
+      "hourStart": "Legkorábbi óra",
+      "hourEnd": "Legkésőbbi óra",
       "source": "Hangforrás"
     },
     "advancedFilters": "Speciális szűrők",
@@ -571,6 +575,9 @@
       "night": "Csak éjjel",
       "sunrise": "Napkelte +/- 30 perc",
       "sunset": "Napnyugta +/- 30 perc"
+    },
+    "hourOptions": {
+      "any": "Bármely óra"
     },
     "sourceOptions": {
       "any": "Összes forrás"
@@ -620,7 +627,8 @@
     },
     "errors": {
       "searchFailed": "Keresés sikertelen: {error}",
-      "minMaxConfidence": "A minimum megbízhatóság nem lehet nagyobb a maximumnál."
+      "minMaxConfidence": "A minimum megbízhatóság nem lehet nagyobb a maximumnál.",
+      "minMaxHour": "A legkorábbi óra nem lehet későbbi a legkésőbbi óránál."
     },
     "pagination": {
       "page": "{current}. oldal / {total}",

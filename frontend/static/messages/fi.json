@@ -550,6 +550,10 @@
       "verifiedStatus": "Todennettu tila",
       "lockedStatus": "Lukittu tila",
       "timeOfDay": "Vuorokaudenaika",
+      "hourRange": "Vuorokaudenaika",
+      "hourRangeHelp": "Suodata havainnot kellonajan mukaan, auringonnoususta ja -laskusta riippumatta (tyhjä = kaikki tunnit)",
+      "hourStart": "Aikaisin tunti",
+      "hourEnd": "Myöhäisin tunti",
       "source": "Äänilähde"
     },
     "advancedFilters": "Lisäsuodattimet",
@@ -571,6 +575,9 @@
       "night": "Vain yöllä",
       "sunrise": "Auringonnousu +/- 30min",
       "sunset": "Auringonlasku +/- 30min"
+    },
+    "hourOptions": {
+      "any": "Mikä tahansa tunti"
     },
     "sourceOptions": {
       "any": "Kaikki lähteet"
@@ -620,7 +627,8 @@
     },
     "errors": {
       "searchFailed": "Haku epäonnistui: {error}",
-      "minMaxConfidence": "Vähimmäisluottamus ei voi olla suurempi kuin enimmäisluottamus."
+      "minMaxConfidence": "Vähimmäisluottamus ei voi olla suurempi kuin enimmäisluottamus.",
+      "minMaxHour": "Aikaisin tunti ei voi olla myöhäisintä tuntia myöhempi."
     },
     "pagination": {
       "page": "Sivu {current}/{total}",
