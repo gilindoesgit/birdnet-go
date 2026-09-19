@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Sivua ei löydy",
     "serverError": "500 - Sisäinen palvelinvirhe",
     "componentError": "Komponentin latausvirhe",
-    "speciesAnalytics": "Lajianalytiikka",
+    "analyticsSpecies": "Analytiikka - Lajit",
     "detectionDetails": "Tunnistuksen tiedot",
     "settingsNotAvailable": "Asetukset eivät ole käytettävissä",
     "analyticsSummary": "Analytiikka - Yhteenveto",
@@ -1955,7 +1955,13 @@
       "none": "Ei mitään",
       "detections": "havaintoa",
       "totalSpecies": "Lajeja yhteensä",
-      "overallAverage": "Kokonaiskeskiarvo"
+      "overallAverage": "Kokonaiskeskiarvo",
+      "newestSpecies": "Uusin laji",
+      "rarestSpecies": "Harvinaisin laji",
+      "occurrenceChance": "{percent} todennäköisyys alueellasi",
+      "locationNotSet": "Aseman sijaintia ei ole määritetty",
+      "noRankedSpecies": "Ei vielä luokiteltuja lajeja",
+      "firstHeard": "Ensihavainto {date}"
     },
     "periods": {
       "today": "Tänään",

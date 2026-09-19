@@ -23,6 +23,15 @@
     valueClassName = '',
     isLoading = false,
   }: Props = $props();
+
+  // A truncated value is unreadable once it overflows (a long species name becomes
+  // "Jumping Bush ..."), so expose the full text as a native tooltip. Values that are
+  // not truncated get no title: a tooltip repeating text already fully on screen is
+  // just noise. Keyed off the caller's own truncate class, so any card that starts
+  // truncating picks this up without a second prop to keep in sync.
+  let valueTitle = $derived(
+    valueClassName.includes('truncate') && !isLoading ? String(value) : undefined
+  );
 </script>
 
 <div class={cn('card bg-[var(--color-base-100)] shadow-xs', className)}>
@@ -35,7 +44,7 @@
         </div>
       {/if}
       <div>
-        <div class={cn('text-3xl font-bold', valueClassName)}>
+        <div class={cn('text-3xl font-bold', valueClassName)} title={valueTitle}>
           {isLoading ? '...' : value}
         </div>
         {#if subtitle}

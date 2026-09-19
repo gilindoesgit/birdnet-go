@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Stránka nenalezena",
     "serverError": "500 - Interní chyba serveru",
     "componentError": "Chyba načítání komponenty",
-    "speciesAnalytics": "Analýza druhů",
+    "analyticsSpecies": "Analytika - Druhy",
     "detectionDetails": "Podrobnosti detekce",
     "settingsNotAvailable": "Nastavení není k dispozici",
     "analyticsSummary": "Analytika - Souhrn",
@@ -1955,7 +1955,13 @@
       "none": "Žádné",
       "detections": "detekcí",
       "totalSpecies": "Celkem druhů",
-      "overallAverage": "Celkový průměr"
+      "overallAverage": "Celkový průměr",
+      "newestSpecies": "Nejnovější druh",
+      "rarestSpecies": "Nejvzácnější druh",
+      "occurrenceChance": "{percent} pravděpodobnost ve vaší oblasti",
+      "locationNotSet": "Poloha stanice není nastavena",
+      "noRankedSpecies": "Zatím žádné hodnocené druhy",
+      "firstHeard": "Poprvé detekováno {date}"
     },
     "periods": {
       "today": "Dnes",

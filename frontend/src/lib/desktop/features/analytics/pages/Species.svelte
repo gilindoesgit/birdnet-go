@@ -2,7 +2,7 @@
   import { t, getLocale, type TranslationKey } from '$lib/i18n';
   import { getLocalDateString, parseLocalDateString } from '$lib/utils/date';
   import { downloadBlob } from '$lib/utils/fileHelpers';
-  import { formatNumber, formatDateTime } from '$lib/utils/formatters';
+  import { formatNumber, formatDate, formatDateTime } from '$lib/utils/formatters';
   import { loggers } from '$lib/utils/logger';
   import { getStoredValue, setStoredValue } from '$lib/utils/storage';
   import { buildAppUrl } from '$lib/utils/urlHelpers';
@@ -11,7 +11,7 @@
   import { buildSpeciesSearchUrl } from '$lib/utils/detectionUrls';
   import { handleBirdImageError } from '$lib/desktop/components/ui/image-utils';
   import { handleAppLinkClick } from '$lib/stores/navigation.svelte';
-  import { ExternalLink } from '@lucide/svelte';
+  import { Bird, ExternalLink, Gauge, Gem, Sparkles } from '@lucide/svelte';
   import { onMount, onDestroy } from 'svelte';
   import SortableHeader from '$lib/desktop/components/ui/SortableHeader.svelte';
   import SpeciesFilterForm from '../components/forms/SpeciesFilterForm.svelte';
@@ -70,6 +70,10 @@
   // space. Wide enough to still fit the "Max Confidence" label + sort chevron on
   // one line.
   const MAX_CONFIDENCE_COLUMN_WIDTH = '140px';
+
+  // Shown in place of a value the page cannot compute, e.g. the rarest species
+  // before a station location is configured.
+  const EM_DASH = '\u2014';
 
   // Species name defaults to ascending (A→Z); every other column defaults to
   // descending (most/highest/most recent first) on first click.
@@ -195,6 +199,67 @@
   }
 
   // Set default dates on mount
+  // Occurrence scores from the BirdNET range filter, keyed by scientific name: the
+  // model's estimate of how likely each species is at the station's location in the
+  // current week. This answers "unusual for this area", which is a different
+  // question from "few detections here".
+  // Two indexes, because the geomodel ships older taxonomy than the detection
+  // database: it still files Cooper's Hawk under Accipiter cooperii while
+  // detections record Astur cooperii, and Hairy Woodpecker under Dryobates
+  // villosus against Leuconotopicus villosus. A scientific-name-only join drops
+  // those silently - real, and sometimes genuinely rare, birds. The score rows
+  // carry a "<scientific>_<common>" label, so the common name bridges the gap.
+  interface OccurrenceScores {
+    byScientificName: Map<string, number>;
+    byCommonName: Map<string, number>;
+  }
+  let occurrenceScores = $state<OccurrenceScores | null>(null);
+  let locationConfigured = $state<boolean | null>(null);
+  let isLoadingScores = $state(true);
+
+  // Fetched once per page load, not per filter change: the scores depend on the
+  // station location and the calendar week, neither of which the filter form can
+  // change. The payload covers every species the geomodel knows (~6.5k rows, a few
+  // hundred KB gzipped), so refetching it on each Apply would be pure waste.
+  // names=false drops localized common names, which this page resolves itself.
+  async function fetchOccurrenceScores() {
+    try {
+      const statusResponse = await fetch(buildAppUrl('/api/v2/range/status'));
+      if (!statusResponse.ok) {
+        throw new Error(`Server responded with ${statusResponse.status}`);
+      }
+      const status: { locationConfigured?: boolean } = await statusResponse.json();
+      locationConfigured = status.locationConfigured === true;
+
+      // With no station location the geomodel scores describe the wrong place
+      // entirely - an unset latitude/longitude of 0,0 sits in the Gulf of Guinea -
+      // so skip the large fetch and let the card say why it cannot rank rarity.
+      if (!locationConfigured) return;
+
+      const response = await fetch(buildAppUrl('/api/v2/range/species/scores?names=false'));
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+      const payload: { species?: { label?: string; scientificName: string; score: number }[] } =
+        await response.json();
+      const byScientificName = new Map<string, number>();
+      const byCommonName = new Map<string, number>();
+      for (const entry of payload.species ?? []) {
+        byScientificName.set(entry.scientificName, entry.score);
+        const separator = entry.label?.indexOf('_') ?? -1;
+        if (separator > 0) {
+          byCommonName.set(entry.label!.slice(separator + 1), entry.score);
+        }
+      }
+      occurrenceScores = { byScientificName, byCommonName };
+    } catch (error) {
+      logger.error('Error fetching range filter occurrence scores:', error);
+      occurrenceScores = null;
+    } finally {
+      isLoadingScores = false;
+    }
+  }
+
   onMount(() => {
     const today = new Date();
     const lastMonth = new Date();
@@ -205,6 +270,7 @@
 
     // Fetch initial data
     fetchData();
+    fetchOccurrenceScores();
   });
 
   function formatDateForInput(date: Date): string {
@@ -423,6 +489,76 @@
     return ((totalWeighted / totalCount) * 100).toFixed(1) + '%';
   }
 
+  // Newest species = the latest first_heard, i.e. the most recent addition to the
+  // station's list. Rows whose first_heard will not parse are skipped so a bad
+  // date cannot win the comparison. Like the totals beside it this reads the
+  // unfiltered speciesData, so the box describes the loaded period, not the
+  // in-page search.
+  let newestSpecies = $derived.by<SpeciesData | null>(() => {
+    let newest: SpeciesData | null = null;
+    let newestTime = Number.NEGATIVE_INFINITY;
+    for (const species of speciesData) {
+      const heard = parseLocalDateString(species.first_heard);
+      if (!heard) continue;
+      const time = heard.getTime();
+      if (time > newestTime) {
+        newestTime = time;
+        newest = species;
+      }
+    }
+    return newest;
+  });
+
+  // Rarest species = the detected species the range filter rates least likely at
+  // the station's location this week - "unusual for this area" rather than "few
+  // detections here", which is what the detection count already says. Species the
+  // geomodel does not cover at all (the always-active secondary models, e.g. bats
+  // and Perch, which the scores endpoint documents as excluded) carry no score:
+  // they are unknown rather than unlikely, so they are skipped instead of
+  // permanently winning the card.
+  let rarest = $derived.by<{ species: SpeciesData; score: number } | null>(() => {
+    const scores = occurrenceScores;
+    if (!scores) return null;
+    let found: { species: SpeciesData; score: number } | null = null;
+    for (const species of speciesData) {
+      const score =
+        scores.byScientificName.get(species.scientific_name) ??
+        scores.byCommonName.get(species.common_name);
+      if (score === undefined) continue;
+      if (!found || score < found.score) found = { species, score };
+    }
+    return found;
+  });
+
+  // Scores run 0-1 and the interesting ones are tiny, so a plain one-decimal
+  // percentage would render the rarest species as "0.0% chance" - technically
+  // rounded, but it reads as "no chance" and hides the ranking the card just made.
+  function formatOccurrenceChance(score: number): string {
+    const percent = score * 100;
+    if (percent > 0 && percent < 0.1) return '<0.1%';
+    return formatPercentage(score);
+  }
+
+  // The card must never just go blank: an unranked state says which of the two
+  // reasons applies - no station location, or a location but no scored species
+  // among those detected.
+  let rarestSubtitle = $derived.by<string>(() => {
+    if (locationConfigured === false) return t('analytics.stats.locationNotSet');
+    if (rarest)
+      return t('analytics.stats.occurrenceChance', {
+        percent: formatOccurrenceChance(rarest.score),
+      });
+    if (!isLoadingScores && occurrenceScores) return t('analytics.stats.noRankedSpecies');
+    return '';
+  });
+
+  // Shared by the two species-name boxes: the localized name, or a dash when the
+  // period has no species at all.
+  function speciesBoxValue(species: SpeciesData | null): string {
+    if (!species) return t('analytics.stats.none');
+    return localizeSpeciesName(species.scientific_name, species.common_name);
+  }
+
   function resetFilters() {
     filters.timePeriod = 'all';
     filters.sortOrder = DEFAULT_SORT_ORDER;
@@ -502,61 +638,67 @@
 </script>
 
 <div class="col-span-12 space-y-4" role="region" aria-label={t('analytics.species.title')}>
-  <!-- Page Header -->
-  <div class="card bg-[var(--color-base-100)] shadow-xs">
-    <div class="card-body card-padding">
-      <div class="flex justify-between items-start">
-        <div>
-          <h1 class="card-title text-2xl">{t('analytics.species.title')}</h1>
-          <p class="text-[var(--color-base-content)] opacity-60">
-            {t('analytics.species.subtitle')}
-          </p>
-        </div>
-        <div class="flex gap-4">
-          <StatCard
-            title={t('analytics.stats.totalSpecies')}
-            value={getTotalSpeciesCount()}
-            subtitle={getTotalDetectionsText()}
-            iconClassName="bg-[var(--color-primary)]/20"
-          >
-            {#snippet icon()}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-6 w-6 text-[var(--color-primary)]"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z"
-                />
-              </svg>
-            {/snippet}
-          </StatCard>
+  <!-- No page-header card: the shell's title bar already names this page, and a
+       second "Species" heading directly under "Analytics - Species" only repeated
+       it. The wrapper's aria-label still gives the region its accessible name. -->
 
-          <StatCard
-            title={t('analytics.stats.avgConfidence')}
-            value={getAverageConfidence()}
-            subtitle={t('analytics.stats.overallAverage')}
-            iconClassName="bg-[var(--color-secondary)]/20"
-          >
-            {#snippet icon()}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-6 w-6 text-[var(--color-secondary)]"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-            {/snippet}
-          </StatCard>
-        </div>
-      </div>
-    </div>
+  <!-- Summary Stats Cards - same four-across grid the Summary view uses. -->
+  <div class="grid gap-4 summary-cards-grid">
+    <!-- Total Species Card -->
+    <StatCard
+      title={t('analytics.stats.totalSpecies')}
+      value={getTotalSpeciesCount()}
+      subtitle={getTotalDetectionsText()}
+      iconClassName="bg-[var(--color-primary)]/20"
+      {isLoading}
+    >
+      {#snippet icon()}
+        <Bird class="h-6 w-6 text-[var(--color-primary)]" aria-hidden="true" />
+      {/snippet}
+    </StatCard>
+
+    <!-- Average Confidence Card -->
+    <StatCard
+      title={t('analytics.stats.avgConfidence')}
+      value={getAverageConfidence()}
+      subtitle={t('analytics.stats.overallAverage')}
+      iconClassName="bg-[var(--color-secondary)]/20"
+      {isLoading}
+    >
+      {#snippet icon()}
+        <Gauge class="h-6 w-6 text-[var(--color-secondary)]" aria-hidden="true" />
+      {/snippet}
+    </StatCard>
+
+    <!-- Newest Species Card -->
+    <StatCard
+      title={t('analytics.stats.newestSpecies')}
+      value={speciesBoxValue(newestSpecies)}
+      subtitle={newestSpecies
+        ? t('analytics.stats.firstHeard', { date: formatDate(newestSpecies.first_heard) })
+        : ''}
+      iconClassName="bg-[var(--color-accent)]/20"
+      valueClassName="text-lg truncate max-w-[150px]"
+      {isLoading}
+    >
+      {#snippet icon()}
+        <Sparkles class="h-6 w-6 text-[var(--color-accent)]" aria-hidden="true" />
+      {/snippet}
+    </StatCard>
+
+    <!-- Rarest Species Card -->
+    <StatCard
+      title={t('analytics.stats.rarestSpecies')}
+      value={rarest ? speciesBoxValue(rarest.species) : EM_DASH}
+      subtitle={rarestSubtitle}
+      iconClassName="bg-[var(--color-success)]/20"
+      valueClassName="text-lg truncate max-w-[150px]"
+      isLoading={isLoading || isLoadingScores}
+    >
+      {#snippet icon()}
+        <Gem class="h-6 w-6 text-[var(--color-success)]" aria-hidden="true" />
+      {/snippet}
+    </StatCard>
   </div>
 
   <!-- Filter Controls -->
@@ -798,6 +940,24 @@
   @media (min-width: 768px) {
     .card-padding {
       padding: 1.5rem;
+    }
+  }
+
+  /* Summary cards grid - matches grid-cols-1 md:grid-cols-2 lg:grid-cols-4 */
+  .summary-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 768px) {
+    .summary-cards-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .summary-cards-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
 

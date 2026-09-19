@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Pagina niet gevonden",
     "serverError": "500 - Interne serverfout",
     "componentError": "Component laadfout",
-    "speciesAnalytics": "Soortanalyses",
+    "analyticsSpecies": "Analyses - Soorten",
     "detectionDetails": "Detectiedetails",
     "settingsNotAvailable": "Instellingen niet beschikbaar",
     "analyticsSummary": "Analyses - Overzicht",
@@ -1955,7 +1955,13 @@
       "none": "Geen",
       "detections": "herkenningen",
       "totalSpecies": "Aantal",
-      "overallAverage": "Gemiddeld over alles"
+      "overallAverage": "Gemiddeld over alles",
+      "newestSpecies": "Nieuwste soort",
+      "rarestSpecies": "Zeldzaamste soort",
+      "occurrenceChance": "{percent} kans in uw omgeving",
+      "locationNotSet": "Locatie van het station niet ingesteld",
+      "noRankedSpecies": "Nog geen gerangschikte soorten",
+      "firstHeard": "Eerst gehoord {date}"
     },
     "periods": {
       "today": "Vandaag",

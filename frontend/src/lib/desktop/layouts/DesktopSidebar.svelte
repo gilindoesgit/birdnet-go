@@ -273,9 +273,10 @@ Performance Optimizations:
     settingsUserInterface: onNavigate ? '/settings/userinterface' : '/ui/settings/userinterface',
   });
 
-  // Flat task-grouped analytics sections (replaces the single Analytics collapsible
-  // plus the old top-level Search/About buttons). Derived so labels and the
-  // query-string-bearing analytics URLs stay reactive.
+  // Flat analytics section (replaces the single Analytics collapsible plus the old
+  // top-level Search/About buttons). Derived so labels and the query-string-bearing
+  // analytics URLs stay reactive. Kept as a list of sections so the Environment and
+  // Data Quality groups noted below can be restored without reshaping the markup.
   interface NavFlatItemDef {
     icon: Component;
     label: string;
@@ -297,8 +298,10 @@ Performance Optimizations:
     const withQuery = (base: string) => base + (qs ? `?${qs}` : '');
     return [
       {
-        id: 'explore',
-        headerLabel: t('navigation.sections.explore'),
+        id: 'analytics',
+        // Reuses navigation.analytics (the label the old Analytics collapsible
+        // carried) rather than a sections.* key, so all locales already have it.
+        headerLabel: t('navigation.analytics'),
         items: [
           {
             icon: BarChart3,
@@ -312,21 +315,6 @@ Performance Optimizations:
             url: withQuery(navigationUrls.analyticsSpecies),
             routeKey: 'analyticsSpecies',
           },
-          {
-            // Formerly "Search", which pointed at a separate page listing the same
-            // detections with a different row layout and a different action set.
-            // Searching is now a filter panel on the detections view itself.
-            icon: Search,
-            label: t('navigation.detections'),
-            url: navigationUrls.detections,
-            routeKey: 'detections',
-          },
-        ],
-      },
-      {
-        id: 'patterns',
-        headerLabel: t('navigation.sections.patterns'),
-        items: [
           {
             icon: Activity,
             label: t('analytics.hub.tabs.patterns'),
@@ -644,8 +632,25 @@ Performance Optimizations:
           />
         {/if}
 
-        <!-- Flat task-grouped analytics sections (Explore / Patterns).
-             Rendered above the auth gate so analytics + Search stay publicly visible. The same
+        <!-- Detections
+             Formerly "Search", which pointed at a separate page listing the same
+             detections with a different row layout and a different action set.
+             Searching is now a filter panel on the detections view itself. Sits
+             outside the hasLiveAudioAccess() gate above and above the auth gate
+             below, so detections stay reachable like the analytics pages. -->
+        <NavFlatItem
+          icon={Search}
+          label={t('navigation.detections')}
+          url={navigationUrls.detections}
+          active={routeCache.detections}
+          {isCollapsed}
+          onNavigate={navigate}
+          {showTooltip}
+          {hideTooltip}
+        />
+
+        <!-- Flat analytics section.
+             Rendered above the auth gate so the analytics pages stay publicly visible. The same
              markup serves collapsed (header self-hides via sr-only; items render icon-only with
              tooltips) and expanded modes - no flyout (collapsed flat-icon mode). -->
         {#each navSections as section (section.id)}

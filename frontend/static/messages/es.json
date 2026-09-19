@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Página no encontrada",
     "serverError": "500 - Error interno del servidor",
     "componentError": "Error de carga del componente",
-    "speciesAnalytics": "Análisis de especies",
+    "analyticsSpecies": "Análisis - Especies",
     "detectionDetails": "Detalles de detección",
     "settingsNotAvailable": "Configuración no disponible",
     "analyticsSummary": "Análisis - Resumen",
@@ -1955,7 +1955,13 @@
       "none": "Ninguna",
       "detections": "detecciones",
       "totalSpecies": "Especies totales",
-      "overallAverage": "Promedio general"
+      "overallAverage": "Promedio general",
+      "newestSpecies": "Especie más reciente",
+      "rarestSpecies": "Especie más rara",
+      "occurrenceChance": "{percent} de probabilidad en tu zona",
+      "locationNotSet": "Ubicación de la estación no configurada",
+      "noRankedSpecies": "Aún no hay especies clasificadas",
+      "firstHeard": "Primera escucha {date}"
     },
     "periods": {
       "today": "Hoy",

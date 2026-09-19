@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Lapa nav atrasta",
     "serverError": "500 - Iekšējā servera kļūda",
     "componentError": "Komponentes ielādes kļūda",
-    "speciesAnalytics": "Sugu analītika",
+    "analyticsSpecies": "Analītika - Sugas",
     "detectionDetails": "Noteikšanas detaļas",
     "settingsNotAvailable": "Iestatījumi nav pieejami",
     "analyticsSummary": "Analītika - Kopsavilkums",
@@ -1955,7 +1955,13 @@
       "none": "Nav",
       "detections": "atpazīšanas",
       "totalSpecies": "Kopējās sugas",
-      "overallAverage": "Kopējais vidējais"
+      "overallAverage": "Kopējais vidējais",
+      "newestSpecies": "Jaunākā suga",
+      "rarestSpecies": "Retākā suga",
+      "occurrenceChance": "{percent} iespēja jūsu apvidū",
+      "locationNotSet": "Stacijas atrašanās vieta nav iestatīta",
+      "noRankedSpecies": "Vēl nav sarindotu sugu",
+      "firstHeard": "Pirmo reizi atpazīta {date}"
     },
     "periods": {
       "today": "Šodien",

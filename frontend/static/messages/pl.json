@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Nie znaleziono strony",
     "serverError": "500 - Wewnętrzny błąd serwera",
     "componentError": "Błąd ładowania komponentu",
-    "speciesAnalytics": "Analityka gatunków",
+    "analyticsSpecies": "Analityka - Gatunki",
     "detectionDetails": "Szczegóły wykrycia",
     "settingsNotAvailable": "Ustawienia niedostępne",
     "analyticsSummary": "Analityka - Podsumowanie",
@@ -1955,7 +1955,13 @@
       "none": "Brak",
       "detections": "detekcje",
       "totalSpecies": "Wszystkie Gatunki",
-      "overallAverage": "Średnia ogólna"
+      "overallAverage": "Średnia ogólna",
+      "newestSpecies": "Najnowszy gatunek",
+      "rarestSpecies": "Najrzadszy gatunek",
+      "occurrenceChance": "{percent} szans w Twojej okolicy",
+      "locationNotSet": "Nie ustawiono lokalizacji stacji",
+      "noRankedSpecies": "Brak sklasyfikowanych gatunków",
+      "firstHeard": "Pierwsze wykrycie {date}"
     },
     "periods": {
       "today": "Dzisiaj",

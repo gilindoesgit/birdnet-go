@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Side ikke funnet",
     "serverError": "500 - Intern serverfeil",
     "componentError": "Feil ved lasting av komponent",
-    "speciesAnalytics": "Artsanalyse",
+    "analyticsSpecies": "Analyse - Arter",
     "detectionDetails": "Registreringsdetaljer",
     "settingsNotAvailable": "Innstillinger ikke tilgjengelig",
     "analyticsSummary": "Analyse - Sammendrag",
@@ -1955,7 +1955,13 @@
       "none": "Ingen",
       "detections": "registreringer",
       "totalSpecies": "Totalt arter",
-      "overallAverage": "Samlet gjennomsnitt"
+      "overallAverage": "Samlet gjennomsnitt",
+      "newestSpecies": "Nyeste art",
+      "rarestSpecies": "Sjeldneste art",
+      "occurrenceChance": "{percent} sjanse i ditt område",
+      "locationNotSet": "Stasjonens plassering er ikke angitt",
+      "noRankedSpecies": "Ingen rangerte arter ennå",
+      "firstHeard": "Først hørt {date}"
     },
     "periods": {
       "today": "I dag",

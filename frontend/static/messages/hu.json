@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Az oldal nem található",
     "serverError": "500 - Belső szerverhiba",
     "componentError": "Komponens betöltési hiba",
-    "speciesAnalytics": "Faj elemzés",
+    "analyticsSpecies": "Elemzés - Fajok",
     "detectionDetails": "Detektálás részletei",
     "settingsNotAvailable": "Beállítások nem elérhetők",
     "analyticsSummary": "Elemzés - Összegzés",
@@ -1955,7 +1955,13 @@
       "none": "Nincs",
       "detections": "detektálás",
       "totalSpecies": "Összes faj",
-      "overallAverage": "Általános átlag"
+      "overallAverage": "Általános átlag",
+      "newestSpecies": "Legújabb faj",
+      "rarestSpecies": "Legritkább faj",
+      "occurrenceChance": "{percent} esély a környékén",
+      "locationNotSet": "Az állomás helye nincs beállítva",
+      "noRankedSpecies": "Még nincs rangsorolt faj",
+      "firstHeard": "Először észlelve {date}"
     },
     "periods": {
       "today": "Ma",

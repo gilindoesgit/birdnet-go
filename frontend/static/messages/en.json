@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Page Not Found",
     "serverError": "500 - Internal Server Error",
     "componentError": "Component Load Error",
-    "speciesAnalytics": "Species Analytics",
+    "analyticsSpecies": "Analytics - Species",
     "detectionDetails": "Detection Details",
     "settingsNotAvailable": "Settings Not Available",
     "analyticsSummary": "Analytics - Summary",
@@ -1955,7 +1955,13 @@
       "none": "None",
       "detections": "detections",
       "totalSpecies": "Total Species",
-      "overallAverage": "Overall average"
+      "overallAverage": "Overall average",
+      "newestSpecies": "Newest Species",
+      "rarestSpecies": "Rarest Species",
+      "occurrenceChance": "{percent} chance in your area",
+      "locationNotSet": "Station location not set",
+      "noRankedSpecies": "No ranked species yet",
+      "firstHeard": "First heard {date}"
     },
     "periods": {
       "today": "Today",

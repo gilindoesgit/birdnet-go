@@ -204,7 +204,7 @@
     "pageNotFound": "404 - Sidan hittades inte",
     "serverError": "500 - Internt serverfel",
     "componentError": "Komponentladdningsfel",
-    "speciesAnalytics": "Artanalys",
+    "analyticsSpecies": "Analys - Arter",
     "detectionDetails": "Detektionsdetaljer",
     "settingsNotAvailable": "Inställningar ej tillgängliga",
     "analyticsSummary": "Analys - Sammanfattning",
@@ -1955,7 +1955,13 @@
       "none": "Ingen",
       "detections": "detektioner",
       "totalSpecies": "Totala arter",
-      "overallAverage": "Totalt genomsnitt"
+      "overallAverage": "Totalt genomsnitt",
+      "newestSpecies": "Nyaste art",
+      "rarestSpecies": "Sällsyntaste art",
+      "occurrenceChance": "{percent} chans i ditt område",
+      "locationNotSet": "Stationens plats är inte angiven",
+      "noRankedSpecies": "Inga rangordnade arter ännu",
+      "firstHeard": "Först hörd {date}"
     },
     "periods": {
       "today": "Idag",
