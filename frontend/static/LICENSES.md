@@ -234,12 +234,12 @@ Source: BSD-3-Clause
 
 ### github.com/nicholas-fedor/shoutrrr
 
-License: https://github.com/nicholas-fedor/shoutrrr/blob/v0.20.0/LICENSE.md
+License: https://github.com/nicholas-fedor/shoutrrr/blob/v0.21.0/LICENSE.md
 Source: MIT
 
 ### github.com/nicholas-fedor/shoutrrr/pkg/color
 
-License: https://github.com/nicholas-fedor/shoutrrr/blob/v0.20.0/pkg/color/LICENSE.md
+License: https://github.com/nicholas-fedor/shoutrrr/blob/v0.21.0/pkg/color/LICENSE.md
 Source: MIT
 
 ### github.com/patrickmn/go-cache
@@ -464,7 +464,7 @@ Source: MIT
 
 ### github.com/tphakala/simd
 
-License: https://github.com/tphakala/simd/blob/v1.10.0/LICENSE
+License: https://github.com/tphakala/simd/blob/v1.11.0/LICENSE
 Source: MIT
 
 ### github.com/valyala/bytebufferpool
@@ -564,7 +564,7 @@ Source: BSD-3-Clause
 
 ### google.golang.org/api
 
-License: https://github.com/googleapis/google-api-go-client/blob/v0.297.0/LICENSE
+License: https://github.com/googleapis/google-api-go-client/blob/v0.298.0/LICENSE
 Source: BSD-3-Clause
 
 ### google.golang.org/genproto/googleapis/rpc
@@ -601,4 +601,24 @@ Source: MIT
 
 License: https://github.com/go-gorm/gorm/blob/v1.31.2/LICENSE
 Source: MIT
+
+### mellium.im/reader
+
+License: 
+Source: BSD-2-Clause
+
+### mellium.im/sasl
+
+License: 
+Source: BSD-2-Clause
+
+### mellium.im/xmlstream
+
+License: 
+Source: BSD-2-Clause
+
+### mellium.im/xmpp
+
+License: 
+Source: BSD-2-Clause
 
