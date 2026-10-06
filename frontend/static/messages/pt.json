@@ -862,9 +862,7 @@
     },
     "detail": {
       "species": "Espécie",
-      "observation": "Observação",
       "aria": {
-        "downloadAudioClip": "Baixar clipe de áudio para a detecção de {name}",
         "audioRecordingFor": "Gravação de áudio e espectrograma para {name}",
         "scientificName": "Nome científico",
         "classificationBadges": "Distintivos de classificação da espécie",
@@ -1014,7 +1012,6 @@
       "clipHint": "Clique e arraste no espectrograma para selecionar um intervalo para exportação"
     },
     "tabs": {
-      "overview": "Visão geral",
       "taxonomy": "Taxonomia",
       "history": "Histórico",
       "notes": "Notas"

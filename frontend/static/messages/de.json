@@ -862,9 +862,7 @@
     },
     "detail": {
       "species": "Art",
-      "observation": "Beobachtung",
       "aria": {
-        "downloadAudioClip": "Audioclip für {name}-Erkennung herunterladen",
         "audioRecordingFor": "Audioaufnahme und Spektrogramm für {name}",
         "scientificName": "Wissenschaftlicher Name",
         "classificationBadges": "Badges zur Artklassifizierung",
@@ -1014,7 +1012,6 @@
       "clipHint": "Klicken und ziehen Sie auf dem Spektrogramm, um einen Bereich für den Clip-Export auszuwählen"
     },
     "tabs": {
-      "overview": "Übersicht",
       "taxonomy": "Taxonomie",
       "history": "Verlauf",
       "notes": "Notizen"

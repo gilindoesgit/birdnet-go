@@ -862,9 +862,7 @@
     },
     "detail": {
       "species": "Druh",
-      "observation": "Pozorovanie",
       "aria": {
-        "downloadAudioClip": "Stiahnuť zvukový záznam pre detekciu {name}",
         "audioRecordingFor": "Zvukový záznam a spektrogram pre {name}",
         "scientificName": "Vedecký názov",
         "classificationBadges": "Odznaky klasifikácie druhu",
@@ -1014,7 +1012,6 @@
       "clipHint": "Kliknite a potiahnite na spektrograme na výber rozsahu pre export"
     },
     "tabs": {
-      "overview": "Prehľad",
       "taxonomy": "Taxonómia",
       "history": "História",
       "notes": "Poznámky"

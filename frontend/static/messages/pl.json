@@ -862,9 +862,7 @@
     },
     "detail": {
       "species": "Gatunek",
-      "observation": "Obserwacja",
       "aria": {
-        "downloadAudioClip": "Pobierz klip audio dla detekcji {name}",
         "audioRecordingFor": "Nagranie audio i spektrogram dla {name}",
         "scientificName": "Nazwa naukowa",
         "classificationBadges": "Odznaki klasyfikacji gatunku",
@@ -1014,7 +1012,6 @@
       "clipHint": "Kliknij i przeciągnij na spektrogramie, aby wybrać zakres do eksportu"
     },
     "tabs": {
-      "overview": "Przegląd",
       "taxonomy": "Taksonomia",
       "history": "Historia",
       "notes": "Notatki"

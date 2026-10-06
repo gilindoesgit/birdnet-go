@@ -4,12 +4,11 @@
   Purpose: Display comprehensive details for a single bird detection
 
   Features:
-  - Editorial hero section with large species thumbnail and display typography
-  - Horizontal metadata stat bar (confidence, date/time, weather, download)
+  - Header card: thumbnail, names and class › order › family; review, source and
+    tracking badges; confidence; and one strip of date/time, weather, rarity and
+    days since first seen
   - Audio player with large spectrogram visualization
-  - Tabbed content: overview, taxonomy, history, notes, review
-  - Weather and environmental context
-  - Species rarity and taxonomy information
+  - Tabbed notes, history and review below the recording
 
   Props:
   - detectionId: string - The ID of the detection to display
@@ -19,6 +18,7 @@
   import WeatherDetails from '$lib/desktop/components/data/WeatherDetails.svelte';
   import AudioPlayer from '$lib/desktop/components/media/AudioPlayer.svelte';
   import VerificationBadges from '$lib/desktop/components/ui/VerificationBadges.svelte';
+  import StatusPill from '$lib/desktop/components/ui/StatusPill.svelte';
   import ErrorAlert from '$lib/desktop/components/ui/ErrorAlert.svelte';
   import { handleBirdImageError } from '$lib/desktop/components/ui/image-utils.js';
   import { t } from '$lib/i18n';
@@ -29,17 +29,7 @@
   import { loggers } from '$lib/utils/logger';
   import { localizeSpeciesName } from '$lib/utils/speciesDisplay';
   import SourceBadge from '$lib/desktop/features/dashboard/components/SourceBadge.svelte';
-  import {
-    Download,
-    Camera,
-    Clock,
-    History,
-    StickyNote,
-    Sun,
-    Moon,
-    Sunrise,
-    Sunset,
-  } from '@lucide/svelte';
+  import { Camera, Clock, History, StickyNote, Sun, Moon, Sunrise, Sunset } from '@lucide/svelte';
 
   // Interface definitions for API responses
   interface SpeciesRarity {
@@ -88,7 +78,10 @@
 
   // Constants
   const TAB_FOCUS_DELAY_MS = 50;
-  type TabType = 'overview' | 'history' | 'notes' | 'review';
+  type TabType = 'notes' | 'history' | 'review';
+  // Shown when the URL has no tab (or an unknown one, such as the retired 'overview')
+  const DEFAULT_TAB: TabType = 'notes';
+  const VALID_TABS: readonly TabType[] = ['notes', 'history', 'review'];
 
   interface Props {
     detectionId?: string;
@@ -101,7 +94,7 @@
   let resolvedDetectionId = $state<string | undefined>(undefined);
 
   // State
-  let activeTab = $state<TabType>('overview');
+  let activeTab = $state<TabType>(DEFAULT_TAB);
 
   // Dynamic review component loading
   let ReviewCard: ReviewCardComponent | null = $state(null);
@@ -160,9 +153,8 @@
   $effect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    const validTabs: TabType[] = ['overview', 'history', 'notes', 'review'];
-    if (tabParam && validTabs.includes(tabParam as TabType)) {
-      activeTab = tabParam === 'review' && !canReview ? 'overview' : (tabParam as TabType);
+    if (tabParam && VALID_TABS.includes(tabParam as TabType)) {
+      activeTab = tabParam === 'review' && !canReview ? DEFAULT_TAB : (tabParam as TabType);
     }
   });
 
@@ -425,7 +417,7 @@
 
   // Keyboard navigation handler for tab buttons
   function handleTabKeydown(e: KeyboardEvent) {
-    const tabs: TabType[] = ['overview', 'history', 'notes'];
+    const tabs: TabType[] = ['notes', 'history'];
     if (canReview) tabs.push('review');
 
     const currentIndex = tabs.indexOf(activeTab);
@@ -461,7 +453,7 @@
     if (typeof window !== 'undefined' && resolvedDetectionId) {
       const url = new URL(window.location.href);
 
-      if (activeTab === 'overview') {
+      if (activeTab === DEFAULT_TAB) {
         url.searchParams.delete('tab');
       } else {
         url.searchParams.set('tab', activeTab);
@@ -480,16 +472,14 @@
       function handlePopState() {
         const urlParams = new URLSearchParams(window.location.search);
         const tabParam = urlParams.get('tab');
-        const validTabs = ['overview', 'history', 'notes', 'review'] as const;
-
-        if (tabParam && validTabs.includes(tabParam as typeof activeTab)) {
+        if (tabParam && VALID_TABS.includes(tabParam as TabType)) {
           if (tabParam === 'review' && !canReview) {
-            activeTab = 'overview';
+            activeTab = DEFAULT_TAB;
           } else {
-            activeTab = tabParam as typeof activeTab;
+            activeTab = tabParam as TabType;
           }
         } else {
-          activeTab = 'overview';
+          activeTab = DEFAULT_TAB;
         }
       }
 
@@ -506,270 +496,282 @@
 
 {#snippet heroSection(det: Detection)}
   {@const displayName = localizeSpeciesName(det.scientificName, det.commonName)}
-  <section class="detection-hero-grid" aria-labelledby="species-heading">
-    <!-- Identity Card -->
-    <div class="hero-card hero-identity-card">
-      <h3 class="section-heading">{t('detections.detail.species')}</h3>
-      <div class="hero-identity-row">
-        <!-- Species thumbnail with credit overlay -->
-        <div class="hero-thumbnail">
-          <img
-            src={buildAppUrl(
-              `/api/v2/media/species-image?name=${encodeURIComponent(det.scientificName)}`
-            )}
-            alt={displayName}
-            class="w-full h-full object-contain"
-            onerror={handleBirdImageError}
-            loading="eager"
-          />
-          {#if imageAttribution?.authorName}
-            <div
-              class="thumbnail-credit"
-              aria-label={t('common.aria.imageCredit', { name: imageAttribution.authorName })}
-            >
-              <Camera size={10} class="credit-icon" />
-              <span class="credit-text">{imageAttribution.authorName}</span>
-              {#if imageAttribution.licenseName}
-                <span class="credit-separator">·</span>
-                {#if imageAttribution.licenseURL}
-                  <a
-                    href={imageAttribution.licenseURL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="credit-license">{imageAttribution.licenseName}</a
-                  >
-                {:else}
-                  <span class="credit-license">{imageAttribution.licenseName}</span>
-                {/if}
+  {@const showDaysSinceFirst = det.daysSinceFirstSeen != null && det.daysSinceFirstSeen > 0}
+  <!-- Header card: who was heard (photo, names, lineage), this detection's status
+       badges and confidence, then one strip of labelled detection facts -->
+  <section class="surface-card detection-header @container" aria-labelledby="species-heading">
+    <div class="header-grid">
+      <!-- Species thumbnail with credit overlay -->
+      <div class="hero-thumbnail">
+        <img
+          src={buildAppUrl(
+            `/api/v2/media/species-image?name=${encodeURIComponent(det.scientificName)}`
+          )}
+          alt={displayName}
+          class="w-full h-full object-contain"
+          onerror={handleBirdImageError}
+          loading="eager"
+        />
+        {#if imageAttribution?.authorName}
+          <div
+            class="thumbnail-credit"
+            aria-label={t('common.aria.imageCredit', { name: imageAttribution.authorName })}
+          >
+            <Camera size={10} class="credit-icon" />
+            <span class="credit-text">{imageAttribution.authorName}</span>
+            {#if imageAttribution.licenseName}
+              <span class="credit-separator">·</span>
+              {#if imageAttribution.licenseURL}
+                <a
+                  href={imageAttribution.licenseURL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="credit-license">{imageAttribution.licenseName}</a
+                >
+              {:else}
+                <span class="credit-license">{imageAttribution.licenseName}</span>
               {/if}
-            </div>
-          {/if}
-        </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
 
-        <!-- Species identity -->
-        <div class="hero-species">
-          <h1 id="species-heading" class="species-display-name">
-            {displayName}
-            <span class="sr-only">{t('detections.detail.aria.speciesHeadingSuffix')}</span>
-          </h1>
-          <p class="species-scientific-name">
+      <!-- Names, lineage and status badges -->
+      <div class="header-identity">
+        <h1 id="species-heading" class="species-display-name">
+          {displayName}
+          <span class="sr-only">{t('detections.detail.aria.speciesHeadingSuffix')}</span>
+        </h1>
+        <!-- Scientific name, then class › order › family. Genus and species are
+             omitted because the binomial already shows them. -->
+        <p class="species-lineage">
+          <span class="species-scientific-name">
             <span class="sr-only"
               >{t('detections.detail.aria.scientificName')}:
             </span>{det.scientificName}
-          </p>
-          <div class="mt-3" aria-label={t('detections.detail.aria.classificationBadges')}>
-            <VerificationBadges detection={det} size="sm" />
-          </div>
-        </div>
-
-        <!-- Confidence -->
-        <div
-          class="hero-confidence"
-          aria-label={t('detections.detail.aria.confidence', {
-            confidence: Math.round((det.confidence ?? 0) * 100),
-          })}
-        >
-          <ConfidenceCircle confidence={det.confidence} size="xl" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Taxonomy Card -->
-    {#if isLoadingTaxonomy || taxonomyInfo?.taxonomy}
-      <div class="hero-card hero-taxonomy-card" aria-labelledby="hero-taxonomy-heading">
-        <h3 id="hero-taxonomy-heading" class="section-heading">
-          {t('species.taxonomy.hierarchy')}
-        </h3>
-        {#if isLoadingTaxonomy}
-          <div class="animate-pulse space-y-2.5">
-            {#each Array(5) as _, i (i)}
-              <div class="flex items-center gap-2" style:padding-left="{i * 1.25}rem">
-                <div class="h-3 rounded bg-[var(--color-base-300)]/60 w-12"></div>
-                <div class="h-3 rounded bg-[var(--color-base-300)]/60 w-20"></div>
-              </div>
-            {/each}
-          </div>
-        {:else if taxonomyInfo?.taxonomy}
-          <div class="taxonomy-tree">
-            {#each [{ key: 'class', value: taxonomyInfo.taxonomy.class, depth: 0 }, { key: 'order', value: taxonomyInfo.taxonomy.order, depth: 1 }, { key: 'family', value: taxonomyInfo.taxonomy.family, depth: 2 }, { key: 'genus', value: taxonomyInfo.taxonomy.genus, depth: 3 }, { key: 'species', value: taxonomyInfo.taxonomy.species, depth: 4 }] as rank, i (rank.key)}
-              <div class="taxonomy-node" style:--depth={rank.depth}>
-                {#if i > 0}
-                  <div class="taxonomy-connector" aria-hidden="true">
-                    <div class="connector-vert"></div>
-                    <div class="connector-horiz"></div>
-                  </div>
-                {/if}
-                <span class="taxonomy-rank-label">
-                  {t(`species.taxonomy.labels.${rank.key}`)}
-                </span>
-                <span class="taxonomy-rank-value" class:italic={rank.key === 'species'}>
-                  {rank.value}
-                </span>
-              </div>
-            {/each}
-          </div>
-
-          {#if subspeciesList.length > 0}
-            <div class="taxonomy-subspecies">
-              <h4 class="taxonomy-subspecies-heading">{t('species.taxonomy.subspecies')}</h4>
-              <div class="taxonomy-subspecies-list">
-                {#each subspeciesList as subspecies, index (`${subspecies.scientific_name}_${index}`)}
-                  <div class="taxonomy-subspecies-item">
-                    <span class="italic">{subspecies.scientific_name}</span>
-                    {#if subspecies.common_name}
-                      <span class="taxonomy-subspecies-common"
-                        >{localizeSpeciesName(
-                          subspecies.scientific_name,
-                          subspecies.common_name
-                        )}</span
-                      >
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-        {/if}
-      </div>
-    {/if}
-
-    <!-- Metadata Card -->
-    <div
-      class="hero-card hero-metadata-card"
-      role="region"
-      aria-label={t('detections.detail.aria.metadata')}
-    >
-      <h3 class="section-heading">{t('detections.detail.observation')}</h3>
-      <!-- Date & Time -->
-      <div class="meta-section">
-        <div class="meta-date">{det.date}</div>
-        <div class="meta-time-row">
-          <Clock class="w-3.5 h-3.5" />
-          <span>{det.time}</span>
-          {#if det.timeOfDay}
-            {@const tod = det.timeOfDay.toLowerCase()}
-            <span class="time-of-day-badge tod-{tod}">
-              {#if tod === 'day'}
-                <Sun size={12} />
-              {:else if tod === 'night'}
-                <Moon size={12} />
-              {:else if tod === 'sunrise'}
-                <Sunrise size={12} />
-              {:else if tod === 'sunset'}
-                <Sunset size={12} />
-              {/if}
-              <span>{t(`detections.timeOfDay.${tod}`)}</span>
+          </span>
+          {#if isLoadingTaxonomy}
+            <span class="taxonomy-path-skeleton animate-pulse" aria-hidden="true"></span>
+          {:else if taxonomyInfo?.taxonomy}
+            <span class="taxonomy-path" aria-label={t('species.taxonomy.hierarchy')}>
+              {#each [{ key: 'class', value: taxonomyInfo.taxonomy.class }, { key: 'order', value: taxonomyInfo.taxonomy.order }, { key: 'family', value: taxonomyInfo.taxonomy.family }].filter(rank => rank.value) as rank, index (rank.key)}
+                {#if index > 0}<span class="taxonomy-sep" aria-hidden="true">›</span>{/if}
+                <span class="taxonomy-rank" title={t(`species.taxonomy.labels.${rank.key}`)}
+                  ><span class="sr-only"
+                    >{t(`species.taxonomy.labels.${rank.key}`)}:
+                  </span>{rank.value}</span
+                >
+              {/each}
             </span>
           {/if}
+        </p>
+
+        <div class="header-badges">
+          <div aria-label={t('detections.detail.aria.classificationBadges')}>
+            <VerificationBadges detection={det} size="sm" />
+          </div>
+          {#if det.source}
+            <SourceBadge detection={det} variant="inline" />
+          {/if}
+          {#if det.isNewSpecies}
+            <StatusPill variant="success" label={t('species.tracking.newSpecies')} size="sm" />
+          {/if}
+          {#if det.isNewThisYear}
+            <StatusPill variant="success" label={t('species.tracking.newThisYear')} size="sm" />
+          {/if}
+          {#if det.isNewThisSeason && det.currentSeason}
+            <StatusPill
+              variant="info"
+              label={`${t('species.tracking.newThisSeason')}: ${det.currentSeason.charAt(0).toUpperCase()}${det.currentSeason.slice(1)}`}
+              size="sm"
+            />
+          {/if}
         </div>
       </div>
 
-      <!-- Audio Source -->
-      {#if det.source}
-        <div class="meta-section">
-          <SourceBadge detection={det} variant="inline" />
-        </div>
-      {/if}
+      <div
+        class="header-confidence"
+        aria-label={t('detections.detail.aria.confidence', {
+          confidence: Math.round((det.confidence ?? 0) * 100),
+        })}
+      >
+        <ConfidenceCircle confidence={det.confidence} size="lg" />
+      </div>
 
-      <!-- Weather -->
-      {#if det.weather}
-        <div
-          class="meta-section hero-weather"
-          aria-label={t('detections.detail.aria.weatherConditions')}
-        >
-          <WeatherDetails
-            weatherIcon={det.weather.weatherIcon}
-            weatherDescription={det.weather.description}
-            timeOfDay={det.timeOfDay?.toLowerCase() === 'night' ? 'night' : 'day'}
-            temperature={det.weather.temperature}
-            windSpeed={det.weather.windSpeed}
-            windGust={det.weather.windGust}
-            units={det.weather.units}
-            size="md"
-          />
+      <!-- Detection facts: one labelled row that wraps as the card narrows -->
+      <dl class="detection-facts" aria-label={t('detections.detail.aria.metadata')}>
+        <div class="fact">
+          <dt class="fact-label">{t('detections.headers.dateTime')}</dt>
+          <dd class="fact-value fact-when">
+            <span>{det.date}</span>
+            <span class="fact-time"><Clock class="w-3.5 h-3.5" />{det.time}</span>
+            {#if det.timeOfDay}
+              {@const tod = det.timeOfDay.toLowerCase()}
+              <span class="time-of-day-badge tod-{tod}">
+                {#if tod === 'day'}
+                  <Sun size={12} />
+                {:else if tod === 'night'}
+                  <Moon size={12} />
+                {:else if tod === 'sunrise'}
+                  <Sunrise size={12} />
+                {:else if tod === 'sunset'}
+                  <Sunset size={12} />
+                {/if}
+                <span>{t(`detections.timeOfDay.${tod}`)}</span>
+              </span>
+            {/if}
+          </dd>
         </div>
-      {/if}
 
-      <!-- Download -->
-      {#if det.clipName}
-        <div class="meta-section">
-          <a
-            href={buildAppUrl(`/api/v2/audio/${det.id}`)}
-            download
-            class="meta-download"
-            aria-label={t('detections.detail.aria.downloadAudioClip', { name: displayName })}
-          >
-            <Download class="w-4 h-4" />
-            <span>{t('media.audio.download')}</span>
-          </a>
-        </div>
+        {#if det.weather}
+          <div class="fact">
+            <dt class="fact-label">{t('detections.headers.weather')}</dt>
+            <dd
+              class="fact-value hero-weather"
+              aria-label={t('detections.detail.aria.weatherConditions')}
+            >
+              <WeatherDetails
+                weatherIcon={det.weather.weatherIcon}
+                weatherDescription={det.weather.description}
+                timeOfDay={det.timeOfDay?.toLowerCase() === 'night' ? 'night' : 'day'}
+                temperature={det.weather.temperature}
+                windSpeed={det.weather.windSpeed}
+                windGust={det.weather.windGust}
+                units={det.weather.units}
+                size="md"
+              />
+            </dd>
+          </div>
+        {/if}
+
+        {#if speciesInfo?.rarity}
+          <div class="fact fact-rarity">
+            <dt class="fact-label">{t('species.rarity.title')}</dt>
+            <dd class="fact-value">
+              <span class="rarity-label"
+                >{t(`species.rarity.statuses.${speciesInfo.rarity.status}`)}</span
+              >
+              {#if speciesInfo.rarity.status !== 'unknown'}
+                <span class="rarity-score">{(speciesInfo.rarity.score * 100).toFixed(0)}%</span>
+              {/if}
+            </dd>
+            {#if speciesInfo.rarity.location_based && speciesInfo.rarity.latitude != null && speciesInfo.rarity.longitude != null}
+              <dd class="fact-note">
+                {t('species.rarity.basedOnLocation', {
+                  latitude: speciesInfo.rarity.latitude.toFixed(2),
+                  longitude: speciesInfo.rarity.longitude.toFixed(2),
+                })}
+              </dd>
+            {/if}
+          </div>
+        {/if}
+
+        {#if showDaysSinceFirst}
+          <div class="fact">
+            <dt class="fact-label">{t('species.tracking.daysSinceFirst')}</dt>
+            <dd class="fact-value">{det.daysSinceFirstSeen}</dd>
+          </div>
+        {/if}
+      </dl>
+
+      {#if subspeciesList.length > 0}
+        <details class="taxonomy-subspecies">
+          <summary class="taxonomy-subspecies-summary">
+            {t('species.taxonomy.subspecies')} ({subspeciesList.length})
+          </summary>
+          <div class="taxonomy-subspecies-list">
+            {#each subspeciesList as subspecies, index (`${subspecies.scientific_name}_${index}`)}
+              <div class="taxonomy-subspecies-item">
+                <span class="italic">{subspecies.scientific_name}</span>
+                {#if subspecies.common_name}
+                  <span class="taxonomy-subspecies-common"
+                    >{localizeSpeciesName(subspecies.scientific_name, subspecies.common_name)}</span
+                  >
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </details>
       {/if}
     </div>
   </section>
 {/snippet}
 
-{#snippet overviewTab(det: Detection)}
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-    <!-- Species Rarity -->
-    {#if speciesInfo?.rarity}
-      <section aria-labelledby="rarity-heading">
-        <h3 id="rarity-heading" class="section-heading">{t('species.rarity.title')}</h3>
-        <div class="content-panel">
-          <div class="flex items-center gap-3 mb-1">
-            <span class="rarity-label"
-              >{t(`species.rarity.statuses.${speciesInfo.rarity.status}`)}</span
-            >
-            <span class="rarity-score">
-              {(speciesInfo.rarity.score * 100).toFixed(0)}%
-            </span>
-          </div>
-          {#if speciesInfo.rarity.location_based && speciesInfo.rarity.latitude != null && speciesInfo.rarity.longitude != null}
-            <p class="text-xs text-[var(--color-base-content)]/40">
-              {t('species.rarity.basedOnLocation', {
-                latitude: speciesInfo.rarity.latitude.toFixed(2),
-                longitude: speciesInfo.rarity.longitude.toFixed(2),
-              })}
-            </p>
-          {/if}
-        </div>
-      </section>
-    {/if}
+{#snippet detailTabs(det: Detection)}
+  <section class="surface-card detail-tabs-card" aria-labelledby="tabs-heading">
+    <h2 id="tabs-heading" class="sr-only">{t('detections.detail.aria.tabsHeading')}</h2>
 
-    <!-- Species Tracking -->
-    {#if det.isNewSpecies || det.isNewThisYear || det.isNewThisSeason || (det.daysSinceFirstSeen != null && det.daysSinceFirstSeen > 0)}
-      <section aria-labelledby="tracking-heading">
-        <h3 id="tracking-heading" class="section-heading">{t('species.tracking.title')}</h3>
-        <div class="content-panel">
-          <dl class="metadata-list">
-            {#if det.isNewSpecies}
-              <div class="metadata-row">
-                <dt>{t('species.tracking.newSpecies')}</dt>
-                <dd class="text-[var(--color-success)] font-medium">{t('common.values.yes')}</dd>
-              </div>
-            {/if}
-            {#if det.isNewThisYear}
-              <div class="metadata-row">
-                <dt>{t('species.tracking.newThisYear')}</dt>
-                <dd class="text-[var(--color-success)] font-medium">{t('common.values.yes')}</dd>
-              </div>
-            {/if}
-            {#if det.isNewThisSeason && det.currentSeason}
-              <div class="metadata-row">
-                <dt>{t('species.tracking.newThisSeason')}</dt>
-                <dd class="capitalize">{det.currentSeason}</dd>
-              </div>
-            {/if}
-            {#if det.daysSinceFirstSeen != null && det.daysSinceFirstSeen > 0}
-              <div class="metadata-row">
-                <dt>{t('species.tracking.daysSinceFirst')}</dt>
-                <dd>{det.daysSinceFirstSeen}</dd>
-              </div>
-            {/if}
-          </dl>
+    <!-- Tab Navigation -->
+    <div class="tab-nav" role="tablist" aria-label={t('detections.detail.aria.tabList')}>
+      {#each ['notes', 'history'] as tab (tab)}
+        <button
+          type="button"
+          id="tab-{tab}"
+          role="tab"
+          class="tab-button"
+          class:tab-active={activeTab === tab}
+          aria-selected={activeTab === tab}
+          aria-controls="tab-panel-{tab}"
+          tabindex={activeTab === tab ? 0 : -1}
+          onclick={() => (activeTab = tab as TabType)}
+          onkeydown={handleTabKeydown}
+        >
+          {t(`detections.tabs.${tab}`)}
+        </button>
+      {/each}
+      {#if canReview}
+        <button
+          type="button"
+          id="tab-review"
+          role="tab"
+          class="tab-button"
+          class:tab-active={activeTab === 'review'}
+          aria-selected={activeTab === 'review'}
+          aria-controls="tab-panel-review"
+          tabindex={activeTab === 'review' ? 0 : -1}
+          onclick={() => (activeTab = 'review')}
+          onkeydown={handleTabKeydown}
+        >
+          {t('common.actions.review')}
+        </button>
+      {/if}
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      {#if activeTab === 'notes'}
+        <div
+          role="tabpanel"
+          id="tab-panel-notes"
+          aria-labelledby="tab-notes"
+          aria-hidden="false"
+          tabindex="0"
+        >
+          {@render notesTab(det)}
         </div>
-      </section>
-    {/if}
-  </div>
+      {:else if activeTab === 'history'}
+        <div
+          role="tabpanel"
+          id="tab-panel-history"
+          aria-labelledby="tab-history"
+          aria-hidden="false"
+          tabindex="0"
+        >
+          {@render historyTab()}
+        </div>
+      {:else if activeTab === 'review' && canReview && ReviewCard}
+        <div
+          role="tabpanel"
+          id="tab-panel-review"
+          aria-labelledby="tab-review"
+          aria-hidden="false"
+          tabindex="0"
+        >
+          <ReviewCard detection={det} onSaveComplete={handleReviewComplete} />
+        </div>
+      {/if}
+    </div>
+  </section>
 {/snippet}
 
 {#snippet historyTab()}
@@ -784,7 +786,8 @@
 
 {#snippet notesTab(det: Detection)}
   <section aria-labelledby="notes-heading">
-    <h3 id="notes-heading" class="section-heading">{t('detections.notes.title')}</h3>
+    <!-- The tab label already names this panel, so the heading is for screen readers only -->
+    <h3 id="notes-heading" class="sr-only">{t('detections.notes.title')}</h3>
     {#if det.comments && det.comments.length > 0}
       <div class="space-y-3" role="list" aria-label={t('detections.detail.aria.comments')}>
         {#each det.comments as comment (comment.id ?? comment.createdAt)}
@@ -830,56 +833,34 @@
 
   {#if isLoadingDetection}
     <!-- Loading skeleton matching real layout structure (decorative, AT uses live region above) -->
-    <div class="detection-hero-grid" aria-hidden="true">
-      <!-- Identity card skeleton -->
-      <div class="hero-card hero-identity-card">
-        <div class="skeleton-line w-20 h-3 mb-4"></div>
-        <div class="hero-identity-row">
-          <div class="hero-thumbnail skeleton-block"></div>
-          <div class="hero-species">
-            <div class="skeleton-line w-48 h-6 mb-2"></div>
-            <div class="skeleton-line w-32 h-4 mb-3"></div>
-            <div class="flex gap-2">
-              <div class="skeleton-line w-16 h-5 rounded-full"></div>
-              <div class="skeleton-line w-16 h-5 rounded-full"></div>
-            </div>
-          </div>
-          <div class="hero-confidence">
-            <div class="skeleton-block w-20 h-20 rounded-full"></div>
+    <div class="surface-card detection-header @container" aria-hidden="true">
+      <div class="header-grid">
+        <div class="hero-thumbnail skeleton-block"></div>
+        <div class="header-identity skeleton-identity">
+          <div class="skeleton-line w-56 h-7 mb-2"></div>
+          <div class="skeleton-line w-72 h-4 mb-3"></div>
+          <div class="flex gap-2">
+            <div class="skeleton-line w-24 h-5 rounded-full"></div>
+            <div class="skeleton-line w-28 h-5 rounded-full"></div>
           </div>
         </div>
-      </div>
-      <!-- Metadata card skeleton -->
-      <div class="hero-card hero-metadata-card">
-        <div class="skeleton-line w-24 h-3 mb-4"></div>
-        <div class="space-y-3">
-          <div class="skeleton-line w-28 h-5"></div>
-          <div class="skeleton-line w-20 h-4"></div>
-          <div class="skeleton-line w-full h-12 mt-4"></div>
+        <div class="header-confidence">
+          <div class="skeleton-block w-14 h-14 rounded-full"></div>
+        </div>
+        <div class="detection-facts">
+          {#each Array(3) as _, i (i)}
+            <div class="space-y-1.5">
+              <div class="skeleton-line w-16 h-2.5"></div>
+              <div class="skeleton-line w-32 h-4"></div>
+            </div>
+          {/each}
         </div>
       </div>
     </div>
     <!-- Media section skeleton -->
-    <div class="surface-card">
-      <div class="p-5 md:p-6">
-        <div class="skeleton-line w-32 h-4 mb-4"></div>
-        <div class="skeleton-block w-full" style:aspect-ratio="2 / 1"></div>
-      </div>
-    </div>
-    <!-- Tabs skeleton -->
-    <div class="surface-card">
-      <div class="p-5 md:p-6">
-        <div class="flex gap-4 mb-6">
-          <div class="skeleton-line w-20 h-8 rounded-md"></div>
-          <div class="skeleton-line w-20 h-8 rounded-md"></div>
-          <div class="skeleton-line w-20 h-8 rounded-md"></div>
-        </div>
-        <div class="space-y-3">
-          <div class="skeleton-line w-full h-4"></div>
-          <div class="skeleton-line w-3/4 h-4"></div>
-          <div class="skeleton-line w-1/2 h-4"></div>
-        </div>
-      </div>
+    <div class="surface-card media-card" aria-hidden="true">
+      <div class="skeleton-line w-32 h-4 mb-3"></div>
+      <div class="skeleton-block w-full" style:aspect-ratio="2 / 1"></div>
     </div>
   {:else if detectionError}
     <!-- Error state -->
@@ -889,135 +870,44 @@
       </div>
     </div>
   {:else if detection}
-    <!-- Hero Section -->
     {@render heroSection(detection)}
 
     <!-- Media Section (shown only when this detection has a clip) -->
     {#if detection.clipName}
-      <section class="surface-card" aria-labelledby="media-heading">
-        <div class="p-5 md:p-6">
+      <section class="surface-card media-card" aria-labelledby="media-heading">
+        <div class="media-heading-row">
           <h2 id="media-heading" class="section-heading !mb-0">
             {t('detections.media.title')}
           </h2>
           {#if clipExtractionEnabled}
-            <p class="text-sm text-[var(--color-base-content)]/60 mt-0.5 mb-4">
-              {t('detections.media.clipHint')}
-            </p>
-          {:else}
-            <div class="mb-3"></div>
+            <p class="media-hint">{t('detections.media.clipHint')}</p>
           {/if}
-          <div
-            role="region"
-            aria-label={t('detections.detail.aria.audioRecordingFor', {
-              name: localizeSpeciesName(detection.scientificName, detection.commonName),
-            })}
-          >
-            <div class="detail-audio-container">
-              <AudioPlayer
-                audioUrl={buildAppUrl(`/api/v2/audio/${detection.id}`)}
-                detectionId={detection.id.toString()}
-                showSpectrogram={true}
-                spectrogramSize="lg"
-                spectrogramRaw={false}
-                responsive={true}
-                className="w-full"
-                enableClipExtraction={clipExtractionEnabled}
-                clipLabel={`${detection.commonName}_${detection.date}_${detection.time.replace(/:/g, '-')}`}
-                modelType={detection.modelType}
-              />
-            </div>
+        </div>
+        <div
+          role="region"
+          aria-label={t('detections.detail.aria.audioRecordingFor', {
+            name: localizeSpeciesName(detection.scientificName, detection.commonName),
+          })}
+        >
+          <div class="detail-audio-container">
+            <AudioPlayer
+              audioUrl={buildAppUrl(`/api/v2/audio/${detection.id}`)}
+              detectionId={detection.id.toString()}
+              showSpectrogram={true}
+              spectrogramSize="lg"
+              spectrogramRaw={false}
+              responsive={true}
+              className="w-full"
+              enableClipExtraction={clipExtractionEnabled}
+              clipLabel={`${detection.commonName}_${detection.date}_${detection.time.replace(/:/g, '-')}`}
+              modelType={detection.modelType}
+            />
           </div>
         </div>
       </section>
     {/if}
 
-    <!-- Tabbed Content -->
-    <section class="surface-card" aria-labelledby="tabs-heading">
-      <div class="p-5 md:p-6">
-        <h2 id="tabs-heading" class="sr-only">{t('detections.detail.aria.tabsHeading')}</h2>
-
-        <!-- Tab Navigation -->
-        <div class="tab-nav" role="tablist" aria-label={t('detections.detail.aria.tabList')}>
-          {#each ['overview', 'history', 'notes'] as tab (tab)}
-            <button
-              type="button"
-              id="tab-{tab}"
-              role="tab"
-              class="tab-button"
-              class:tab-active={activeTab === tab}
-              aria-selected={activeTab === tab}
-              aria-controls="tab-panel-{tab}"
-              tabindex={activeTab === tab ? 0 : -1}
-              onclick={() => (activeTab = tab as TabType)}
-              onkeydown={handleTabKeydown}
-            >
-              {t(`detections.tabs.${tab}`)}
-            </button>
-          {/each}
-          {#if canReview}
-            <button
-              type="button"
-              id="tab-review"
-              role="tab"
-              class="tab-button"
-              class:tab-active={activeTab === 'review'}
-              aria-selected={activeTab === 'review'}
-              aria-controls="tab-panel-review"
-              tabindex={activeTab === 'review' ? 0 : -1}
-              onclick={() => (activeTab = 'review')}
-              onkeydown={handleTabKeydown}
-            >
-              {t('common.actions.review')}
-            </button>
-          {/if}
-        </div>
-
-        <!-- Tab Content -->
-        <div class="mt-6">
-          {#if activeTab === 'overview'}
-            <div
-              role="tabpanel"
-              id="tab-panel-overview"
-              aria-labelledby="tab-overview"
-              aria-hidden="false"
-              tabindex="0"
-            >
-              {@render overviewTab(detection)}
-            </div>
-          {:else if activeTab === 'history'}
-            <div
-              role="tabpanel"
-              id="tab-panel-history"
-              aria-labelledby="tab-history"
-              aria-hidden="false"
-              tabindex="0"
-            >
-              {@render historyTab()}
-            </div>
-          {:else if activeTab === 'notes'}
-            <div
-              role="tabpanel"
-              id="tab-panel-notes"
-              aria-labelledby="tab-notes"
-              aria-hidden="false"
-              tabindex="0"
-            >
-              {@render notesTab(detection)}
-            </div>
-          {:else if activeTab === 'review' && canReview && ReviewCard}
-            <div
-              role="tabpanel"
-              id="tab-panel-review"
-              aria-labelledby="tab-review"
-              aria-hidden="false"
-              tabindex="0"
-            >
-              <ReviewCard {detection} onSaveComplete={handleReviewComplete} />
-            </div>
-          {/if}
-        </div>
-      </div>
-    </section>
+    {@render detailTabs(detection)}
   {/if}
 </main>
 
@@ -1029,7 +919,7 @@
   .detection-detail {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
     width: 100%;
   }
 
@@ -1038,179 +928,111 @@
     background-color: var(--color-base-100);
     border-radius: var(--radius-box);
     border: 1px solid var(--border-100);
+    min-width: 0;
   }
 
-  /* ----- Hero Section: Two-card grid ----- */
-  .detection-hero-grid {
+  /* ----- Header card ----- */
+  .detection-header {
+    padding: 1rem 1.25rem;
+  }
+
+  /* Phone-width card: name and lineage beside the thumbnail, then badges and
+     facts across the full width so the badges are not squeezed into a narrow
+     column. Medium card: thumbnail, identity and confidence on one row, facts
+     below at full width. Wide card: the facts move up beside the thumbnail, so
+     the whole header is about as tall as the photo. */
+  .header-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'thumb name confidence'
+      'thumb lineage lineage'
+      'badges badges badges'
+      'facts facts facts';
+    align-items: start;
+    gap: 0.375rem 0.75rem;
   }
 
-  /* Two columns: identity + metadata, taxonomy spans below */
-  @media (min-width: 1024px) {
-    .detection-hero-grid {
-      grid-template-columns: 1fr minmax(220px, 280px);
-    }
-
-    .hero-identity-card {
-      grid-column: 1;
-      grid-row: 1;
-    }
-
-    .hero-metadata-card {
-      grid-column: 2;
-      grid-row: 1;
-    }
-
-    .hero-taxonomy-card {
-      grid-column: 1 / -1;
-    }
+  /* On a phone-width card the identity block's children join the grid directly */
+  .header-identity {
+    display: contents;
   }
 
-  /* Three columns: all cards in one row */
-  @media (min-width: 1440px) {
-    .detection-hero-grid {
-      grid-template-columns: 1fr auto minmax(220px, 280px);
-    }
-
-    .hero-identity-card {
-      grid-column: 1;
-      grid-row: 1;
-    }
-
-    .hero-taxonomy-card {
-      grid-column: 2;
-      grid-row: 1;
-    }
-
-    .hero-metadata-card {
-      grid-column: 3;
-      grid-row: 1;
-    }
+  .header-identity > .species-display-name {
+    grid-area: name;
   }
 
-  .hero-card {
-    background-color: var(--color-base-100);
-    border-radius: var(--radius-box);
-    border: 1px solid var(--border-100);
-    padding: 1.5rem;
+  .header-identity > .species-lineage {
+    grid-area: lineage;
   }
 
-  @media (min-width: 768px) {
-    .hero-card {
-      padding: 2rem;
-    }
-  }
-
-  /* Identity card row: thumbnail + species + confidence */
-  .hero-identity-row {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  @media (min-width: 768px) {
-    .hero-identity-row {
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 1.5rem;
-    }
-  }
-
-  .hero-confidence {
-    flex-shrink: 0;
-  }
-
-  @media (min-width: 768px) {
-    .hero-confidence {
-      margin-left: auto;
-      padding-left: 1.5rem;
-      border-left: 1px solid var(--border-100);
-    }
-  }
-
-  /* Metadata card - vertical stacked sections */
-  .hero-metadata-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .meta-section {
-    padding: 0.875rem 0;
-  }
-
-  .meta-section:first-child {
-    padding-top: 0;
-  }
-
-  .meta-section:last-child {
-    padding-bottom: 0;
-  }
-
-  .meta-section + .meta-section {
-    border-top: 1px solid var(--border-100);
-  }
-
-  /* Date - prominent visual anchor for the time section */
-  .meta-date {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-base-content);
-    letter-spacing: -0.01em;
-  }
-
-  /* Time + time-of-day badge - inline, secondary */
-  .meta-time-row {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
+  .header-identity > .header-badges {
+    grid-area: badges;
     margin-top: 0.25rem;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--color-base-content);
-    opacity: 0.7;
   }
 
-  .meta-time-row .time-of-day-badge {
-    margin-top: 0;
-    margin-left: 0.125rem;
+  /* The loading skeleton's placeholder lines stay one block beside the thumbnail */
+  @container (width < 30rem) {
+    .header-identity.skeleton-identity {
+      display: block;
+      grid-row: 1 / span 2;
+      grid-column: 2 / span 1;
+    }
   }
 
-  .meta-download {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--color-base-content);
-    opacity: 0.6;
-    transition: opacity 0.15s ease;
+  @container (min-width: 30rem) {
+    .header-grid {
+      grid-template-areas:
+        'thumb identity confidence'
+        'facts facts facts';
+      gap: 0.75rem 1rem;
+    }
+
+    .header-identity {
+      display: block;
+      grid-area: identity;
+      min-width: 0;
+    }
+
+    .header-identity > .header-badges {
+      margin-top: 0.5rem;
+    }
   }
 
-  .meta-download:hover {
-    opacity: 1;
+  @container (min-width: 48rem) {
+    .header-grid {
+      grid-template-areas:
+        'thumb identity confidence'
+        'thumb facts facts';
+      column-gap: 1.25rem;
+    }
+  }
+
+  .header-confidence {
+    grid-area: confidence;
   }
 
   /* Species thumbnail - 4:3 to match avicommons 320×240 source images */
   .hero-thumbnail {
+    grid-area: thumb;
     position: relative;
-    width: 100%;
+    width: 96px;
     aspect-ratio: 4 / 3;
-    max-height: 160px;
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
     overflow: hidden;
     background: linear-gradient(135deg, var(--color-base-200), var(--color-base-300));
-    box-shadow: var(--shadow-md);
-    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
   }
 
-  @media (min-width: 768px) {
+  @container (min-width: 40rem) {
     .hero-thumbnail {
-      width: 220px;
-      min-width: 220px;
-      max-height: none;
+      width: 128px;
+    }
+  }
+
+  @container (min-width: 48rem) {
+    .hero-thumbnail {
+      width: 160px;
     }
   }
 
@@ -1260,38 +1082,124 @@
     text-decoration: underline;
   }
 
-  /* Species identity - takes available space */
-  .hero-species {
-    flex: 1;
-    min-width: 0;
-    padding-top: 0.125rem;
-  }
-
   /* Species display name - refined Inter typography */
   .species-display-name {
     font-family: 'Inter Variable', Inter, ui-sans-serif, sans-serif;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 650;
     line-height: 1.2;
     letter-spacing: -0.025em;
     color: var(--color-base-content);
     margin: 0;
+    overflow-wrap: break-word;
   }
 
-  @media (min-width: 768px) {
+  @container (min-width: 40rem) {
     .species-display-name {
-      font-size: 1.875rem;
+      font-size: 1.5rem;
     }
+  }
+
+  /* Scientific name followed by class › order › family on one wrapping line */
+  .species-lineage {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.125rem 0.75rem;
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+    color: var(--color-base-content);
   }
 
   .species-scientific-name {
     font-style: italic;
-    font-size: 0.875rem;
-    font-weight: 400;
+    opacity: 0.6;
+    letter-spacing: 0.01em;
+  }
+
+  .taxonomy-path {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.375rem;
+    opacity: 0.55;
+  }
+
+  .taxonomy-sep {
+    opacity: 0.6;
+  }
+
+  .taxonomy-path-skeleton {
+    display: inline-block;
+    width: 10rem;
+    height: 0.75rem;
+    border-radius: var(--radius-selector);
+    background: var(--color-base-300);
+    opacity: 0.6;
+  }
+
+  .header-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+  }
+
+  /* ----- Detection facts: labelled values in one wrapping row ----- */
+  .detection-facts {
+    grid-area: facts;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem 1.75rem;
+    margin-top: 0.375rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-100);
+    min-width: 0;
+  }
+
+  @container (min-width: 30rem) {
+    .detection-facts {
+      margin-top: 0;
+    }
+  }
+
+  .fact {
+    min-width: 0;
+  }
+
+  .fact-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--color-base-content);
     opacity: 0.5;
-    margin-top: 0.125rem;
-    letter-spacing: 0.01em;
+    margin-bottom: 0.125rem;
+  }
+
+  .fact-value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.5rem;
+    color: var(--color-base-content);
+  }
+
+  .fact-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    opacity: 0.75;
+  }
+
+  .fact-note {
+    font-size: 0.6875rem;
+    color: var(--color-base-content);
+    opacity: 0.5;
   }
 
   /* Time of day badge - theme-safe via alpha transparency */
@@ -1305,7 +1213,6 @@
     letter-spacing: 0.04em;
     padding: 0.2rem 0.5rem;
     border-radius: 9999px;
-    margin-top: 0.5rem;
     line-height: 1;
     color: var(--color-base-content);
   }
@@ -1326,26 +1233,94 @@
     background: oklch(78% 0.12 30deg / 0.4);
   }
 
-  /* Weather in metadata card - consistent typographic scale */
+  /* Weather on one line: condition, temperature, wind */
   .hero-weather :global(.wd-container) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
   }
 
   .hero-weather :global(.wd-weather-row),
   .hero-weather :global(.wd-temperature-row),
   .hero-weather :global(.wd-wind-row) {
-    gap: 0.375rem;
-    font-size: 0.8125rem;
+    gap: 0.25rem;
+  }
+
+  .hero-weather :global(.wd-weather-row span),
+  .hero-weather :global(.wd-temperature-row span),
+  .hero-weather :global(.wd-wind-row span) {
+    font-size: 0.875rem;
   }
 
   .hero-weather :global(.wd-weather-icon) {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
 
   .hero-weather :global(.wd-wind-row) {
+    opacity: 0.6;
+  }
+
+  .rarity-label {
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .rarity-score {
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+
+  /* ----- Subspecies: collapsed under the facts ----- */
+  .taxonomy-subspecies {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  @container (min-width: 48rem) {
+    .taxonomy-subspecies {
+      grid-column: 2 / -1;
+    }
+  }
+
+  .taxonomy-subspecies-summary {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-base-content);
     opacity: 0.55;
+    cursor: pointer;
+    width: fit-content;
+  }
+
+  .taxonomy-subspecies-summary:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-selector);
+  }
+
+  .taxonomy-subspecies-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+  }
+
+  .taxonomy-subspecies-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--color-base-content);
+    padding: 0.125rem 0.5rem;
+    background-color: var(--color-base-200);
+    border: 1px solid var(--border-100);
+    border-radius: var(--radius-field);
+  }
+
+  .taxonomy-subspecies-common {
+    font-size: 0.75rem;
+    opacity: 0.5;
   }
 
   /* ----- Section Heading ----- */
@@ -1356,7 +1331,7 @@
     letter-spacing: 0.06em;
     color: var(--color-base-content);
     opacity: 0.65;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.625rem;
   }
 
   /* ----- Content Panel (inner blocks) ----- */
@@ -1364,151 +1339,51 @@
     background-color: var(--color-base-200);
     border-radius: var(--radius-field);
     border: 1px solid var(--border-100);
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
-  /* ----- Metadata list (key-value pairs) ----- */
-  .metadata-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
+  /* ----- Media card: heading and hint share one line when they fit ----- */
+  .media-card {
+    padding: 1rem 1.25rem 1.25rem;
   }
 
-  .metadata-row {
+  .media-heading-row {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
     align-items: baseline;
-    font-size: 0.875rem;
+    gap: 0.125rem 0.75rem;
+    margin-bottom: 0.75rem;
   }
 
-  .metadata-row dt {
+  .media-hint {
+    font-size: 0.8125rem;
     color: var(--color-base-content);
-    opacity: 0.5;
+    opacity: 0.6;
   }
 
-  .metadata-row dd {
-    font-weight: 500;
-    color: var(--color-base-content);
+  .detail-audio-container {
+    width: 100%;
   }
 
-  /* ----- Rarity display ----- */
-  .rarity-label {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--color-base-content);
-    text-transform: capitalize;
-  }
-
-  .rarity-score {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--color-base-content);
-    opacity: 0.65;
-  }
-
-  /* ----- Taxonomy tree with connector lines ----- */
-
-  .taxonomy-tree {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .taxonomy-node {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding-left: calc(var(--depth) * 1.25rem);
-    min-height: 2rem;
+  .detail-audio-container :global(.group) {
     position: relative;
   }
 
-  /* Connector lines */
-  .taxonomy-connector {
-    position: absolute;
-    left: calc(var(--depth) * 1.25rem - 0.75rem);
-    top: 0;
-    width: 0.75rem;
-    height: 100%;
-    pointer-events: none;
-  }
-
-  .connector-vert {
-    position: absolute;
-    left: 0;
-    top: -0.25rem;
-    width: 1px;
-    height: calc(50% + 0.25rem);
-    background-color: var(--border-200);
-  }
-
-  .connector-horiz {
-    position: absolute;
-    left: 0;
-    top: 50%;
+  .detail-audio-container :global(img) {
     width: 100%;
-    height: 1px;
-    background-color: var(--border-200);
+    height: auto;
+    display: block;
   }
 
-  .taxonomy-rank-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-base-content);
-    opacity: 0.35;
-    flex-shrink: 0;
-    min-width: 3.5rem;
+  /* ----- Tabs card: notes, history and review below the recording ----- */
+  .detail-tabs-card {
+    padding: 0.25rem 1.25rem 1.25rem;
   }
 
-  .taxonomy-rank-value {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-base-content);
-  }
-
-  /* Subspecies section */
-  .taxonomy-subspecies {
+  .tab-content {
     margin-top: 1rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--border-100);
   }
 
-  .taxonomy-subspecies-heading {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-base-content);
-    opacity: 0.35;
-    margin-bottom: 0.5rem;
-  }
-
-  .taxonomy-subspecies-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .taxonomy-subspecies-item {
-    display: flex;
-    align-items: baseline;
-    gap: 0.375rem;
-    font-size: 0.8125rem;
-    color: var(--color-base-content);
-    padding: 0.25rem 0.625rem;
-    background-color: var(--color-base-100);
-    border: 1px solid var(--border-100);
-    border-radius: var(--radius-field);
-  }
-
-  .taxonomy-subspecies-common {
-    font-size: 0.75rem;
-    opacity: 0.5;
-  }
-
-  /* ----- Tab Navigation ----- */
   .tab-nav {
     display: flex;
     gap: 0;
@@ -1524,7 +1399,7 @@
 
   .tab-button {
     position: relative;
-    padding: 0.625rem 1rem;
+    padding: 0.625rem 0.875rem;
     font-size: 0.8125rem;
     font-weight: 500;
     color: var(--color-base-content);
@@ -1557,45 +1432,29 @@
     font-weight: 600;
   }
 
-  /* ----- Audio Container ----- */
-  .detail-audio-container {
-    width: 100%;
-  }
-
-  .detail-audio-container :global(.group) {
-    position: relative;
-  }
-
-  .detail-audio-container :global(img) {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
   /* ----- Empty States ----- */
+  /* One compact line: icon, optional heading, message */
   .empty-state-section {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    padding: 3rem 1.5rem;
-    text-align: center;
+    gap: 0.25rem 0.5rem;
+    padding: 0.25rem 0;
   }
 
-  .empty-state-icon {
-    width: 2.5rem;
-    height: 2.5rem;
+  .empty-state-section :global(.empty-state-icon) {
+    width: 1rem;
+    height: 1rem;
     color: var(--color-base-content);
-    opacity: 0.2;
-    margin-bottom: 1rem;
+    opacity: 0.3;
+    flex-shrink: 0;
   }
 
   .empty-state-heading {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-base-content);
     opacity: 0.55;
-    margin-bottom: 0.5rem;
   }
 
   .empty-state-text {

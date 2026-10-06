@@ -101,7 +101,9 @@
   }
 </script>
 
-<div class="card bg-[var(--color-base-100)] shadow-xs border border-[var(--color-base-300)]">
+<div
+  class="card @container bg-[var(--color-base-100)] shadow-xs border border-[var(--color-base-300)]"
+>
   <div class="card-body">
     <h3 class="card-title text-lg font-semibold mb-4">
       {t('common.review.form.reviewDetectionTitle')}
@@ -115,8 +117,8 @@
       </div>
     {/if}
 
-    <!-- Review Controls Container -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Review Controls Container: two columns only when the card itself is wide -->
+    <div class="grid grid-cols-1 @2xl:grid-cols-2 gap-6">
       <!-- Left Column: Review Form -->
       <div class="space-y-4">
         <!-- Review Status Form -->

@@ -862,9 +862,7 @@
     },
     "detail": {
       "species": "Soort",
-      "observation": "Waarneming",
       "aria": {
-        "downloadAudioClip": "Audiofragment downloaden voor {name} detectie",
         "audioRecordingFor": "Geluidsopname en spectrogram voor {name}",
         "scientificName": "Wetenschappelijke naam",
         "classificationBadges": "Soortclassificatie-badges",
@@ -1014,7 +1012,6 @@
       "clipHint": "Klik en sleep op het spectrogram om een bereik te selecteren voor export"
     },
     "tabs": {
-      "overview": "Overzicht",
       "taxonomy": "Taxonomie",
       "history": "Geschiedenis",
       "notes": "Notities"

@@ -689,8 +689,6 @@ export type TranslationKey =
   | 'detections.titles.search' // params: query
   | 'detections.titles.allDetections' // params: date
   | 'detections.detail.species'
-  | 'detections.detail.observation'
-  | 'detections.detail.aria.downloadAudioClip' // params: name
   | 'detections.detail.aria.audioRecordingFor' // params: name
   | 'detections.detail.aria.scientificName'
   | 'detections.detail.aria.classificationBadges'
@@ -809,7 +807,6 @@ export type TranslationKey =
   | 'detections.row.imageFailedToLoad'
   | 'detections.media.title'
   | 'detections.media.clipHint'
-  | 'detections.tabs.overview'
   | 'detections.tabs.taxonomy'
   | 'detections.tabs.history'
   | 'detections.tabs.notes'
@@ -4409,7 +4406,6 @@ export type TranslationParams = {
   'detections.titles.species': { species: string | number; date: string | number };
   'detections.titles.search': { query: string | number };
   'detections.titles.allDetections': { date: string | number };
-  'detections.detail.aria.downloadAudioClip': { name: string | number };
   'detections.detail.aria.audioRecordingFor': { name: string | number };
   'detections.detail.aria.confidence': { confidence: string | number };
   'detections.pagination.showing': {

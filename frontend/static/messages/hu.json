@@ -862,9 +862,7 @@
     },
     "detail": {
       "species": "Faj",
-      "observation": "Megfigyelés",
       "aria": {
-        "downloadAudioClip": "Hangklip letöltése: {name} észleléshez",
         "audioRecordingFor": "Hangfelvétel és spektrogram: {name}",
         "scientificName": "Tudományos név",
         "classificationBadges": "Faj besorolási jelvények",
@@ -1014,7 +1012,6 @@
       "clipHint": "Kattintson és húzza a spektrogramon egy tartomány kijelöléséhez a kivágás exportálásához"
     },
     "tabs": {
-      "overview": "Áttekintés",
       "taxonomy": "Taxonómia",
       "history": "Előzmények",
       "notes": "Megjegyzések"

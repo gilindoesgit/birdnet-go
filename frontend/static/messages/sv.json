@@ -862,9 +862,7 @@
     },
     "detail": {
       "species": "Art",
-      "observation": "Observation",
       "aria": {
-        "downloadAudioClip": "Ladda ner ljudklipp för {name}-detektion",
         "audioRecordingFor": "Ljudinspelning och spektrogram för {name}",
         "scientificName": "Vetenskapligt namn",
         "classificationBadges": "Märken för artklassificering",
@@ -1014,7 +1012,6 @@
       "clipHint": "Klicka och dra på spektrogrammet för att välja ett intervall för klippexport"
     },
     "tabs": {
-      "overview": "Översikt",
       "taxonomy": "Taxonomi",
       "history": "Historik",
       "notes": "Anteckningar"

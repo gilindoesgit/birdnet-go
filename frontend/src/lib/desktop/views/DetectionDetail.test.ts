@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { waitFor, cleanup } from '@testing-library/svelte';
 import { createComponentTestFactory } from '../../../test/render-helpers';
 import DetectionDetail from './DetectionDetail.svelte';
+import AudioPlayer from '$lib/desktop/components/media/AudioPlayer.svelte';
 import type { Detection } from '$lib/types/detection.types';
 
 // Heavy / context-dependent children are not relevant to the fetch-race logic.
@@ -124,7 +125,7 @@ describe('DetectionDetail stale-response race (#978)', () => {
   });
 });
 
-describe('DetectionDetail audio download', () => {
+describe('DetectionDetail audio player', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -134,7 +135,9 @@ describe('DetectionDetail audio download', () => {
     vi.unstubAllGlobals();
   });
 
-  it('uses the ID-based endpoint when downloading the original audio', async () => {
+  // The player's own download button and Export menu fetch audioUrl, so it must stay the
+  // ID-based endpoint (whose Content-Disposition header supplies the canonical filename).
+  it('passes the ID-based audio endpoint to the player with downloads enabled', async () => {
     const detection = makeDetection({
       id: 1239,
       scientificName: 'Phalaenoptilus nuttallii',
@@ -152,17 +155,53 @@ describe('DetectionDetail audio download', () => {
       })
     );
 
-    const { container } = detailTest.render({ detectionId: '1239' });
+    detailTest.render({ detectionId: '1239' });
 
     await waitFor(() => {
-      expect(container.querySelector('a.meta-download')).not.toBeNull();
+      expect(vi.mocked(AudioPlayer)).toHaveBeenCalled();
     });
 
-    const downloadLink = container.querySelector<HTMLAnchorElement>('a.meta-download');
-    expect(downloadLink?.getAttribute('href')).toBe('/api/v2/audio/1239');
-    // Keep the attribute valueless so the response's Content-Disposition header
-    // supplies the canonical filename and extension.
-    expect(downloadLink).toHaveAttribute('download', '');
+    // Svelte 5 components are called as (anchor, props).
+    const props = vi.mocked(AudioPlayer).mock.calls.at(-1)?.[1];
+    expect(props?.audioUrl).toBe('/api/v2/audio/1239');
+    expect(props?.detectionId).toBe('1239');
+    expect(props?.showDownload).not.toBe(false);
+  });
+});
+
+describe('DetectionDetail new-this-season badge', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('capitalizes the season name from the API', async () => {
+    const detection = makeDetection({
+      id: 55,
+      isNewThisSeason: true,
+      currentSeason: 'spring',
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        if (String(input).includes('/api/v2/detections/55')) {
+          return Promise.resolve(jsonResponse(detection));
+        }
+        return Promise.resolve(jsonResponse({}));
+      })
+    );
+
+    const { container } = detailTest.render({ detectionId: '55' });
+
+    await waitFor(() => {
+      expect(container.textContent).toContain(': Spring');
+    });
+    expect(container.textContent).not.toContain(': spring');
   });
 });
 
@@ -202,7 +241,7 @@ describe('DetectionDetail rarity location coordinates', () => {
   }
 
   function raritySection(container: HTMLElement): HTMLElement | null {
-    return container.querySelector<HTMLElement>('section[aria-labelledby="rarity-heading"]');
+    return container.querySelector<HTMLElement>('.detection-facts .fact-rarity');
   }
 
   // A station configured at exactly 0.0 latitude/longitude (equator / prime meridian). The
@@ -223,8 +262,8 @@ describe('DetectionDetail rarity location coordinates', () => {
       expect(raritySection(container)).not.toBeNull();
     });
 
-    // The based-on-location paragraph is the only <p> inside the rarity section.
-    expect(raritySection(container)?.querySelectorAll('p')).toHaveLength(1);
+    // The based-on-location line is the rarity fact's only note.
+    expect(raritySection(container)?.querySelectorAll('.fact-note')).toHaveLength(1);
   });
 
   // Defensive: if the API ever reports location_based while omitting the coordinates (a
@@ -245,6 +284,91 @@ describe('DetectionDetail rarity location coordinates', () => {
 
     const section = raritySection(container);
     expect(section?.querySelector('.rarity-label')).not.toBeNull();
-    expect(section?.querySelectorAll('p')).toHaveLength(0);
+    expect(section?.querySelectorAll('.fact-note')).toHaveLength(0);
+    // A 0% score next to "Unknown" carries no information, so it is hidden.
+    expect(section?.querySelector('.rarity-score')).toBeNull();
+  });
+});
+
+describe('DetectionDetail card layout', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows species, status and detection facts in one header card above the recording', async () => {
+    const detection = makeDetection({
+      id: 88,
+      scientificName: 'Turdus merula',
+      commonName: 'Blackbird',
+      clipName: 'turdus_merula_90p_20240101T100000Z.m4a',
+      isNewSpecies: true,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/v2/detections/88')) {
+          return Promise.resolve(jsonResponse(detection));
+        }
+        if (url.includes('/api/v2/species/taxonomy?scientific_name=')) {
+          return Promise.resolve(
+            jsonResponse({
+              taxonomy: {
+                kingdom: 'Animalia',
+                phylum: 'Chordata',
+                class: 'Aves',
+                order: 'Passeriformes',
+                family: 'Turdidae',
+                genus: 'Turdus',
+                species: 'Turdus merula',
+              },
+            })
+          );
+        }
+        return Promise.resolve(jsonResponse({}));
+      })
+    );
+
+    const { container } = detailTest.render({ detectionId: '88' });
+
+    await waitFor(() => {
+      expect(container.querySelector('.detection-header .taxonomy-path')).not.toBeNull();
+    });
+
+    // Exactly one header card holds the species, its lineage, confidence and facts.
+    expect(container.querySelectorAll('.detection-header')).toHaveLength(1);
+    const header = container.querySelector<HTMLElement>('.detection-header');
+    const lineage = header?.querySelector<HTMLElement>('.taxonomy-path');
+    expect(lineage?.textContent).toContain('Aves');
+    expect(lineage?.textContent).toContain('Passeriformes');
+    expect(lineage?.textContent).toContain('Turdidae');
+    // Genus and species are already in the binomial, so the path stops at family.
+    expect(lineage?.textContent).not.toContain('Turdus');
+    expect(header?.querySelector('.header-confidence')).not.toBeNull();
+    expect(header?.querySelector('.detection-facts')).not.toBeNull();
+    // Tracking flags are badges in the header, not a separate overview tab.
+    expect(header?.querySelector('.header-badges')?.textContent).toContain(
+      'species.tracking.newSpecies'
+    );
+    expect(header?.querySelector('[role="tablist"]')).toBeNull();
+    // The recording card's Export menu (or the player's own download button)
+    // already offers the original file, so the header has no download link.
+    expect(header?.querySelector('a[download]')).toBeNull();
+
+    // Tabs follow the recording, and there is no overview tab any more.
+    const media = container.querySelector<HTMLElement>('.media-card');
+    const tabs = container.querySelector<HTMLElement>('.detail-tabs-card');
+    expect(media).not.toBeNull();
+    expect(tabs).not.toBeNull();
+    const position = tabs ? media?.compareDocumentPosition(tabs) : undefined;
+    expect((position ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelectorAll('[role="tablist"]')).toHaveLength(1);
+    expect(container.querySelector('#tab-overview')).toBeNull();
+    expect(container.querySelector('#tab-panel-notes')).not.toBeNull();
   });
 });
