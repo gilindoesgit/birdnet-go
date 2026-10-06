@@ -141,7 +141,6 @@ export type TranslationKey =
   | 'common.aria.imageCredit' // params: name
   | 'common.labels.confidence'
   | 'common.labels.github'
-  | 'common.values.yes'
   | 'common.values.no'
   | 'common.values.unknown'
   | 'common.modal.confirmAction'
@@ -688,7 +687,6 @@ export type TranslationKey =
   | 'detections.titles.species' // params: species, date
   | 'detections.titles.search' // params: query
   | 'detections.titles.allDetections' // params: date
-  | 'detections.detail.species'
   | 'detections.detail.aria.audioRecordingFor' // params: name
   | 'detections.detail.aria.scientificName'
   | 'detections.detail.aria.classificationBadges'
@@ -861,7 +859,6 @@ export type TranslationKey =
   | 'species.synonyms.errors.unknownSpecies'
   | 'species.synonyms.errors.duplicateKey'
   | 'species.synonyms.errors.emptyUpdatedName'
-  | 'species.tracking.title'
   | 'species.tracking.newSpecies'
   | 'species.tracking.newThisYear'
   | 'species.tracking.newThisSeason'

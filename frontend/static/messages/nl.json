@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Ja",
       "no": "Nee",
       "unknown": "Onbekend"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Alles herkend op {date}"
     },
     "detail": {
-      "species": "Soort",
       "aria": {
         "audioRecordingFor": "Geluidsopname en spectrogram voor {name}",
         "scientificName": "Wetenschappelijke naam",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Soortmonitoring",
       "newSpecies": "Nieuwe soort",
       "newThisYear": "Eerste keer dit jaar",
       "newThisSeason": "Eerste keer dit seizoen",

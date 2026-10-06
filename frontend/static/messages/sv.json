@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Ja",
       "no": "Nej",
       "unknown": "Okänd"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Alla detekteringar för {date}"
     },
     "detail": {
-      "species": "Art",
       "aria": {
         "audioRecordingFor": "Ljudinspelning och spektrogram för {name}",
         "scientificName": "Vetenskapligt namn",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Artspårning",
       "newSpecies": "Ny art",
       "newThisYear": "Första i år",
       "newThisSeason": "Första denna säsong",

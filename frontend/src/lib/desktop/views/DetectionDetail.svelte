@@ -82,6 +82,17 @@
   // Shown when the URL has no tab (or an unknown one, such as the retired 'overview')
   const DEFAULT_TAB: TabType = 'notes';
   const VALID_TABS: readonly TabType[] = ['notes', 'history', 'review'];
+  // Season keys the backend reports, each with a localized name in the settings messages
+  const KNOWN_SEASONS: readonly string[] = [
+    'spring',
+    'summer',
+    'fall',
+    'winter',
+    'wet1',
+    'dry1',
+    'wet2',
+    'dry2',
+  ];
 
   interface Props {
     detectionId?: string;
@@ -109,6 +120,30 @@
   let isLoadingTaxonomy = $state(false);
   let detectionError = $state<string | null>(null);
   let imageAttribution = $state<ImageAttribution | null>(null);
+
+  // Tabs in display order; review only for users allowed to review
+  let visibleTabs = $derived<readonly TabType[]>(
+    canReview ? VALID_TABS : VALID_TABS.filter(tab => tab !== 'review')
+  );
+
+  // Class › order › family for the header lineage (genus and species are in the binomial)
+  let lineageRanks = $derived(
+    taxonomyInfo?.taxonomy
+      ? [
+          { key: 'class', value: taxonomyInfo.taxonomy.class },
+          { key: 'order', value: taxonomyInfo.taxonomy.order },
+          { key: 'family', value: taxonomyInfo.taxonomy.family },
+        ].filter(rank => rank.value)
+      : []
+  );
+
+  // Localized season name, falling back to the capitalized key for an unknown season
+  function seasonLabel(season: string): string {
+    if (KNOWN_SEASONS.includes(season)) {
+      return t(`settings.species.tracking.seasonal.seasons.${season}`);
+    }
+    return season.charAt(0).toUpperCase() + season.slice(1);
+  }
 
   // Derived state for subspecies with proper typing
   let subspeciesList = $derived<Subspecies[]>(
@@ -417,9 +452,7 @@
 
   // Keyboard navigation handler for tab buttons
   function handleTabKeydown(e: KeyboardEvent) {
-    const tabs: TabType[] = ['notes', 'history'];
-    if (canReview) tabs.push('review');
-
+    const tabs = visibleTabs;
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex === -1) return;
 
@@ -551,12 +584,12 @@
             </span>{det.scientificName}
           </span>
           {#if isLoadingTaxonomy}
-            <span class="taxonomy-path-skeleton animate-pulse" aria-hidden="true"></span>
-          {:else if taxonomyInfo?.taxonomy}
-            <span class="taxonomy-path" aria-label={t('species.taxonomy.hierarchy')}>
-              {#each [{ key: 'class', value: taxonomyInfo.taxonomy.class }, { key: 'order', value: taxonomyInfo.taxonomy.order }, { key: 'family', value: taxonomyInfo.taxonomy.family }].filter(rank => rank.value) as rank, index (rank.key)}
+            <span class="skeleton-line inline-block w-40 h-3" aria-hidden="true"></span>
+          {:else if lineageRanks.length > 0}
+            <span class="taxonomy-path" role="group" aria-label={t('species.taxonomy.hierarchy')}>
+              {#each lineageRanks as rank, index (rank.key)}
                 {#if index > 0}<span class="taxonomy-sep" aria-hidden="true">›</span>{/if}
-                <span class="taxonomy-rank" title={t(`species.taxonomy.labels.${rank.key}`)}
+                <span title={t(`species.taxonomy.labels.${rank.key}`)}
                   ><span class="sr-only"
                     >{t(`species.taxonomy.labels.${rank.key}`)}:
                   </span>{rank.value}</span
@@ -567,7 +600,7 @@
         </p>
 
         <div class="header-badges">
-          <div aria-label={t('detections.detail.aria.classificationBadges')}>
+          <div role="group" aria-label={t('detections.detail.aria.classificationBadges')}>
             <VerificationBadges detection={det} size="sm" />
           </div>
           {#if det.source}
@@ -582,7 +615,7 @@
           {#if det.isNewThisSeason && det.currentSeason}
             <StatusPill
               variant="info"
-              label={`${t('species.tracking.newThisSeason')}: ${det.currentSeason.charAt(0).toUpperCase()}${det.currentSeason.slice(1)}`}
+              label={`${t('species.tracking.newThisSeason')}: ${seasonLabel(det.currentSeason)}`}
               size="sm"
             />
           {/if}
@@ -591,6 +624,7 @@
 
       <div
         class="header-confidence"
+        role="group"
         aria-label={t('detections.detail.aria.confidence', {
           confidence: Math.round((det.confidence ?? 0) * 100),
         })}
@@ -602,7 +636,7 @@
       <dl class="detection-facts" aria-label={t('detections.detail.aria.metadata')}>
         <div class="fact">
           <dt class="fact-label">{t('detections.headers.dateTime')}</dt>
-          <dd class="fact-value fact-when">
+          <dd class="fact-value">
             <span>{det.date}</span>
             <span class="fact-time"><Clock class="w-3.5 h-3.5" />{det.time}</span>
             {#if det.timeOfDay}
@@ -703,7 +737,7 @@
 
     <!-- Tab Navigation -->
     <div class="tab-nav" role="tablist" aria-label={t('detections.detail.aria.tabList')}>
-      {#each ['notes', 'history'] as tab (tab)}
+      {#each visibleTabs as tab (tab)}
         <button
           type="button"
           id="tab-{tab}"
@@ -713,28 +747,12 @@
           aria-selected={activeTab === tab}
           aria-controls="tab-panel-{tab}"
           tabindex={activeTab === tab ? 0 : -1}
-          onclick={() => (activeTab = tab as TabType)}
+          onclick={() => (activeTab = tab)}
           onkeydown={handleTabKeydown}
         >
-          {t(`detections.tabs.${tab}`)}
+          {tab === 'review' ? t('common.actions.review') : t(`detections.tabs.${tab}`)}
         </button>
       {/each}
-      {#if canReview}
-        <button
-          type="button"
-          id="tab-review"
-          role="tab"
-          class="tab-button"
-          class:tab-active={activeTab === 'review'}
-          aria-selected={activeTab === 'review'}
-          aria-controls="tab-panel-review"
-          tabindex={activeTab === 'review' ? 0 : -1}
-          onclick={() => (activeTab = 'review')}
-          onkeydown={handleTabKeydown}
-        >
-          {t('common.actions.review')}
-        </button>
-      {/if}
     </div>
 
     <!-- Tab Content -->
@@ -936,7 +954,7 @@
     padding: 1rem 1.25rem;
   }
 
-  /* Phone-width card: name and lineage beside the thumbnail, then badges and
+  /* Narrow card: name and lineage beside the thumbnail, then badges and
      facts across the full width so the badges are not squeezed into a narrow
      column. Medium card: thumbnail, identity and confidence on one row, facts
      below at full width. Wide card: the facts move up beside the thumbnail, so
@@ -953,7 +971,7 @@
     gap: 0.375rem 0.75rem;
   }
 
-  /* On a phone-width card the identity block's children join the grid directly */
+  /* On a narrow card the identity block's children join the grid directly */
   .header-identity {
     display: contents;
   }
@@ -1049,7 +1067,7 @@
     border-top-left-radius: 0.375rem;
   }
 
-  .credit-icon {
+  .thumbnail-credit :global(.credit-icon) {
     color: oklch(85% 0 0deg);
     flex-shrink: 0;
   }
@@ -1129,21 +1147,11 @@
     opacity: 0.6;
   }
 
-  .taxonomy-path-skeleton {
-    display: inline-block;
-    width: 10rem;
-    height: 0.75rem;
-    border-radius: var(--radius-selector);
-    background: var(--color-base-300);
-    opacity: 0.6;
-  }
-
   .header-badges {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.375rem;
-    margin-top: 0.5rem;
   }
 
   /* ----- Detection facts: labelled values in one wrapping row ----- */

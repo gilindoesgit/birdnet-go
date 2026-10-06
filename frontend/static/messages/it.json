@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Sì",
       "no": "No",
       "unknown": "Sconosciuto"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Tutti i rilevamenti del {date}"
     },
     "detail": {
-      "species": "Specie",
       "aria": {
         "audioRecordingFor": "Registrazione audio e spettrogramma per {name}",
         "scientificName": "Nome scientifico",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Tracciamento specie",
       "newSpecies": "Nuova specie",
       "newThisYear": "Prima volta quest'anno",
       "newThisSeason": "Prima volta questa stagione",

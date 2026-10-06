@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Áno",
       "no": "Nie",
       "unknown": "Neznáme"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Všetky detekcie pre dátum {date}"
     },
     "detail": {
-      "species": "Druh",
       "aria": {
         "audioRecordingFor": "Zvukový záznam a spektrogram pre {name}",
         "scientificName": "Vedecký názov",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Sledovanie druhov",
       "newSpecies": "Nový druh",
       "newThisYear": "Prvýkrát tento rok",
       "newThisSeason": "Prvýkrát túto sezónu",

@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Kyllä",
       "no": "Ei",
       "unknown": "Tuntematon"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Kaikki havainnot päivänä {date}"
     },
     "detail": {
-      "species": "Laji",
       "aria": {
         "audioRecordingFor": "Äänitallenne ja spektrogrammi lajille {name}",
         "scientificName": "Tieteellinen nimi",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Lajiseuranta",
       "newSpecies": "Uusi laji",
       "newThisYear": "Ensimmäinen tänä vuonna",
       "newThisSeason": "Ensimmäinen tällä kaudella",

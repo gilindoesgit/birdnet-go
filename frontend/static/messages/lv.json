@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Jā",
       "no": "Nē",
       "unknown": "Nezināms"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Visas atklāšanas datumā {date}"
     },
     "detail": {
-      "species": "Suga",
       "aria": {
         "audioRecordingFor": "Audio ieraksts un spektrogramma {name}",
         "scientificName": "Zinātniskais nosaukums",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Sugu izsekošana",
       "newSpecies": "Jauna suga",
       "newThisYear": "Pirmā šogad",
       "newThisSeason": "Pirmā šosezon",

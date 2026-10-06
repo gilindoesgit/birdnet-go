@@ -137,7 +137,7 @@ describe('DetectionDetail audio player', () => {
 
   // The player's own download button and Export menu fetch audioUrl, so it must stay the
   // ID-based endpoint (whose Content-Disposition header supplies the canonical filename).
-  it('passes the ID-based audio endpoint to the player with downloads enabled', async () => {
+  it('passes the ID-based audio endpoint to the player without disabling downloads', async () => {
     const detection = makeDetection({
       id: 1239,
       scientificName: 'Phalaenoptilus nuttallii',
@@ -165,6 +165,7 @@ describe('DetectionDetail audio player', () => {
     const props = vi.mocked(AudioPlayer).mock.calls.at(-1)?.[1];
     expect(props?.audioUrl).toBe('/api/v2/audio/1239');
     expect(props?.detectionId).toBe('1239');
+    // DetectionDetail relies on the player's default (showDownload = true).
     expect(props?.showDownload).not.toBe(false);
   });
 });
@@ -179,12 +180,8 @@ describe('DetectionDetail new-this-season badge', () => {
     vi.unstubAllGlobals();
   });
 
-  it('capitalizes the season name from the API', async () => {
-    const detection = makeDetection({
-      id: 55,
-      isNewThisSeason: true,
-      currentSeason: 'spring',
-    });
+  function renderWithSeason(currentSeason: string) {
+    const detection = makeDetection({ id: 55, isNewThisSeason: true, currentSeason });
 
     vi.stubGlobal(
       'fetch',
@@ -196,12 +193,111 @@ describe('DetectionDetail new-this-season badge', () => {
       })
     );
 
-    const { container } = detailTest.render({ detectionId: '55' });
+    return detailTest.render({ detectionId: '55' });
+  }
+
+  // The test i18n setup returns keys, so a localized name shows up as its message key.
+  it('shows the localized season name', async () => {
+    const { container } = renderWithSeason('spring');
 
     await waitFor(() => {
-      expect(container.textContent).toContain(': Spring');
+      expect(container.textContent).toContain(
+        ': settings.species.tracking.seasonal.seasons.spring'
+      );
     });
-    expect(container.textContent).not.toContain(': spring');
+  });
+
+  it('shows the localized name for equatorial seasons', async () => {
+    const { container } = renderWithSeason('wet1');
+
+    await waitFor(() => {
+      expect(container.textContent).toContain(': settings.species.tracking.seasonal.seasons.wet1');
+    });
+  });
+
+  it('capitalizes a season the UI has no name for', async () => {
+    const { container } = renderWithSeason('monsoon');
+
+    await waitFor(() => {
+      expect(container.textContent).toContain(': Monsoon');
+    });
+  });
+});
+
+describe('DetectionDetail tab URL', () => {
+  // The test setup replaces window.location with a static stub, so each test installs
+  // its own and watches history.replaceState for the URL the view writes back.
+  const originalLocationDescriptor = Object.getOwnPropertyDescriptor(window, 'location');
+
+  function setLocation(pathWithQuery: string) {
+    const url = new URL(pathWithQuery, 'http://localhost:3000');
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: {
+        href: url.href,
+        origin: url.origin,
+        pathname: url.pathname,
+        search: url.search,
+        hash: '',
+      },
+    });
+  }
+
+  function stubDetectionFetch() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        if (String(input).includes('/api/v2/detections/66')) {
+          return Promise.resolve(jsonResponse(makeDetection({ id: 66 })));
+        }
+        return Promise.resolve(jsonResponse({}));
+      })
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    if (originalLocationDescriptor) {
+      Object.defineProperty(window, 'location', originalLocationDescriptor);
+    }
+  });
+
+  // Bookmarks from before the overview tab was retired must still open the page.
+  it('falls back to notes for the retired overview tab and drops the parameter', async () => {
+    setLocation('/ui/detections/66?tab=overview');
+    const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    stubDetectionFetch();
+
+    const { container } = detailTest.render({ detectionId: '66' });
+
+    await waitFor(() => {
+      expect(container.querySelector('#tab-panel-notes')).not.toBeNull();
+    });
+    expect(container.querySelector('#tab-overview')).toBeNull();
+    await waitFor(() => {
+      expect(replaceState).toHaveBeenCalledWith(null, '', '/ui/detections/66');
+    });
+  });
+
+  it('keeps a valid tab from the URL', async () => {
+    setLocation('/ui/detections/66?tab=history');
+    const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    stubDetectionFetch();
+
+    const { container } = detailTest.render({ detectionId: '66' });
+
+    await waitFor(() => {
+      expect(container.querySelector('#tab-panel-history')).not.toBeNull();
+    });
+    // The URL already matches the active tab, so it is left alone.
+    expect(replaceState).not.toHaveBeenCalled();
   });
 });
 
@@ -268,7 +364,7 @@ describe('DetectionDetail rarity location coordinates', () => {
 
   // Defensive: if the API ever reports location_based while omitting the coordinates (a
   // contract violation), the != null guard must hide the line instead of crashing on
-  // undefined.toFixed. The rarity status/score still render.
+  // undefined.toFixed. The rarity status still renders; the score is hidden for 'unknown'.
   it('omits the location line and does not crash when coordinates are missing', async () => {
     const { container } = renderWithRarity({
       status: 'unknown',

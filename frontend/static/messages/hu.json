@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Igen",
       "no": "Nem",
       "unknown": "Ismeretlen"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Összes detektálás {date}-án"
     },
     "detail": {
-      "species": "Faj",
       "aria": {
         "audioRecordingFor": "Hangfelvétel és spektrogram: {name}",
         "scientificName": "Tudományos név",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Faj követés",
       "newSpecies": "Új faj",
       "newThisYear": "Első az idén",
       "newThisSeason": "Első ebben az évszakban",

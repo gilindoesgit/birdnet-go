@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Ja",
       "no": "Nej",
       "unknown": "Ukendt"
     },
@@ -861,7 +860,6 @@
       "allDetections": "Alle registreringer for {date}"
     },
     "detail": {
-      "species": "Art",
       "aria": {
         "audioRecordingFor": "Lydoptagelse og spektrogram for {name}",
         "scientificName": "Videnskabeligt navn",
@@ -1094,7 +1092,6 @@
       }
     },
     "tracking": {
-      "title": "Artssporing",
       "newSpecies": "Ny art",
       "newThisYear": "Første i år",
       "newThisSeason": "Første denne sæson",
