@@ -191,7 +191,7 @@ Performance Optimizations:
     // The search page was merged into the detections view, so this entry tracks
     // both: /ui/search still resolves (it redirects) and must not leave the
     // sidebar with nothing highlighted during the hop. The detection-detail
-    // route (/ui/detections/<id>) is excluded, since that is a different page.
+    // route (a numeric id after /ui/detections/) is excluded, since that is a different page.
     detections:
       actualRoute === '/ui/detections' ||
       actualRoute === '/ui/detections/' ||

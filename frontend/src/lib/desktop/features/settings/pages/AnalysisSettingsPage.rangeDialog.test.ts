@@ -61,6 +61,8 @@ vi.mock('$lib/stores/settings', async () => {
       rangeFilter: { threshold: 0.01 },
     }),
     dynamicThresholdSettings: writable({ enabled: false }),
+    rarityFilterSettings: writable(undefined),
+    DEFAULT_RARITY_BANDS: [],
     realtimeSettings: writable({}),
     batSettings: writable({}),
     perchSettings: writable({}),

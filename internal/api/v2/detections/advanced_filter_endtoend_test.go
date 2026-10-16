@@ -38,6 +38,13 @@ func newSeededHandler(t *testing.T) (*echo.Echo, *Handler) {
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
+	// Close the pool so its connection-opener goroutine does not outlive the test
+	// (the package's goleak check fails the run otherwise).
+	t.Cleanup(func() {
+		if sqlDB, dbErr := db.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
 	require.NoError(t, db.AutoMigrate(
 		&datastore.Note{}, &datastore.NoteReview{}, &datastore.NoteLock{}, &datastore.NoteComment{},
 	))

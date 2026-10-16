@@ -62,6 +62,8 @@ vi.mock('$lib/stores/settings', async () => {
     hasUnsavedChanges: writable(false),
     birdnetSettings,
     dynamicThresholdSettings: writable({ enabled: false }),
+    rarityFilterSettings: writable(undefined),
+    DEFAULT_RARITY_BANDS: [],
     realtimeSettings,
     batSettings: writable({}),
     perchSettings: writable({}),
