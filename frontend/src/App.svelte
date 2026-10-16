@@ -165,7 +165,7 @@
     {
       route: 'species',
       page: 'analytics/species',
-      titleKey: 'pageTitle.speciesAnalytics',
+      titleKey: 'pageTitle.analyticsSpecies',
       component: 'species',
     },
     {

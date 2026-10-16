@@ -126,26 +126,24 @@ describe('DesktopSidebar - flat task-grouped sections', () => {
     analyticsControls.applyParams({ range: 'month', start: '', end: '', species: [], source: '' });
   });
 
-  it('renders Dashboard, Live Audio, then the two section headers in order, each wired to its group via aria-labelledby', () => {
+  it('renders Dashboard, Live Audio and Detections as top-level items, then the Analytics section header wired to its group via aria-labelledby', () => {
     const { container } = sidebarTest.render({ currentRoute: '/ui/dashboard' });
 
-    // Top-level flat items.
+    // Top-level flat items. Detections is one of them: it is no longer a section item.
     expect(screen.getByText('navigation.dashboard')).toBeInTheDocument();
     expect(screen.getByText('navigation.liveAudio')).toBeInTheDocument();
+    expect(screen.getByText('navigation.detections')).toBeInTheDocument();
+    expect(getBtn('navigation.detections').closest('[aria-labelledby^="nav-section-"]')).toBeNull();
 
     // The Environment and Data Quality sections are intentionally omitted until those
-    // pages are release-ready, leaving Explore and Patterns in the spec'd order.
-    const headerLabels = ['navigation.sections.explore', 'navigation.sections.patterns'];
-    headerLabels.forEach(label => expect(screen.getByText(label)).toBeInTheDocument());
+    // pages are release-ready, leaving Analytics as the only flat section.
+    expect(screen.getByText('navigation.analytics')).toBeInTheDocument();
 
-    // Each section is a role="group" labelled by its header id, in document order.
+    // The section is a role="group" labelled by its header id.
     const groups = Array.from(
       container.querySelectorAll<HTMLElement>('[aria-labelledby^="nav-section-"]')
     );
-    expect(groups.map(g => g.getAttribute('aria-labelledby'))).toEqual([
-      'nav-section-explore',
-      'nav-section-patterns',
-    ]);
+    expect(groups.map(g => g.getAttribute('aria-labelledby'))).toEqual(['nav-section-analytics']);
 
     // Each group's aria-labelledby resolves to a header element carrying that id.
     groups.forEach(g => {
@@ -160,9 +158,9 @@ describe('DesktopSidebar - flat task-grouped sections', () => {
     sidebarTest.render({ currentRoute: '/ui/dashboard', onNavigate });
 
     const expectations: Array<[string, string]> = [
+      ['navigation.detections', '/detections'],
       ['analytics.hub.tabs.summary', '/analytics/summary'],
       ['analytics.species.title', '/analytics/species'],
-      ['navigation.detections', '/detections'],
       ['analytics.hub.tabs.patterns', '/analytics/activity'],
       ['analytics.hub.tabs.trends', '/analytics/trends'],
       ['analytics.hub.tabs.nocturnal', '/analytics/nocturnal'],
@@ -196,9 +194,9 @@ describe('DesktopSidebar - flat task-grouped sections', () => {
 
     // The section headers are present in the DOM (so aria-labelledby stays valid) but sr-only.
     // Use getByText to get a non-nullable reference for the class assertion.
-    const exploreHeader = screen.getByText('navigation.sections.explore');
-    expect(exploreHeader).toBeInTheDocument();
-    expect(exploreHeader.className).toContain('sr-only');
+    const analyticsHeader = screen.getByText('navigation.analytics');
+    expect(analyticsHeader).toBeInTheDocument();
+    expect(analyticsHeader.className).toContain('sr-only');
 
     // Collapsed items render icon-only (no visible label text) but still expose an aria-label.
     const detectionsBtn = screen.getByRole('button', { name: 'navigation.detections' });
@@ -231,27 +229,24 @@ describe('DesktopSidebar - flat task-grouped sections', () => {
     expect(helpContainer?.contains(aboutBtn)).toBe(true);
   });
 
-  it('renders analytics items within their sections in spec order', () => {
+  it('renders the analytics items within the Analytics section in spec order, Detections excluded', () => {
     const { container } = sidebarTest.render({ currentRoute: '/ui/dashboard' });
 
-    // EXPLORE: Summary, Species, Search
-    const exploreGroup = container.querySelector('#nav-section-explore')?.closest('[role="group"]');
-    const exploreButtons = Array.from(exploreGroup?.querySelectorAll('button') ?? []);
-    const exploreLabels = exploreButtons.map(b => b.textContent.trim()).filter(Boolean);
-    expect(exploreLabels[0]).toContain('analytics.hub.tabs.summary');
-    expect(exploreLabels[1]).toContain('analytics.species.title');
-    expect(exploreLabels[2]).toContain('navigation.detections');
-
-    // PATTERNS: Activity, Trends, Nocturnal, Biodiversity
-    const patternsGroup = container
-      .querySelector('#nav-section-patterns')
+    // ANALYTICS: Summary, Species, Activity, Trends, Nocturnal, Biodiversity
+    const analyticsGroup = container
+      .querySelector('#nav-section-analytics')
       ?.closest('[role="group"]');
-    const patternsButtons = Array.from(patternsGroup?.querySelectorAll('button') ?? []);
-    const patternsLabels = patternsButtons.map(b => b.textContent.trim()).filter(Boolean);
-    expect(patternsLabels[0]).toContain('analytics.hub.tabs.patterns');
-    expect(patternsLabels[1]).toContain('analytics.hub.tabs.trends');
-    expect(patternsLabels[2]).toContain('analytics.hub.tabs.nocturnal');
-    expect(patternsLabels[3]).toContain('analytics.hub.tabs.biodiversity');
+    const analyticsButtons = Array.from(analyticsGroup?.querySelectorAll('button') ?? []);
+    const analyticsLabels = analyticsButtons.map(b => b.textContent.trim()).filter(Boolean);
+    expect(analyticsLabels[0]).toContain('analytics.hub.tabs.summary');
+    expect(analyticsLabels[1]).toContain('analytics.species.title');
+    expect(analyticsLabels[2]).toContain('analytics.hub.tabs.patterns');
+    expect(analyticsLabels[3]).toContain('analytics.hub.tabs.trends');
+    expect(analyticsLabels[4]).toContain('analytics.hub.tabs.nocturnal');
+    expect(analyticsLabels[5]).toContain('analytics.hub.tabs.biodiversity');
+
+    // Detections is a top-level item, so it must not appear inside the section.
+    expect(analyticsLabels.some(l => l.includes('navigation.detections'))).toBe(false);
   });
 
   it('deep-link: analytics item URLs carry the active query while Detections/Dashboard stay query-less', async () => {

@@ -91,6 +91,12 @@ vi.mock('$lib/utils/logger', () => ({
       warn: vi.fn(),
       error: vi.fn(),
     },
+    analytics: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
   },
   getLogger: vi.fn((_category: string) => ({
     debug: vi.fn(),
