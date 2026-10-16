@@ -1216,7 +1216,7 @@ func (p *Processor) createDetection(settings *conf.Settings, item classifier.Res
 	endTime := item.StartTime.Add(normalDetectionWindow(settings))
 
 	// Get occurrence probability for this species at detection time
-	occurrence := p.Bn.GetSpeciesOccurrenceAtTime(result.Species, item.StartTime)
+	occurrence, occurrenceValid := p.Bn.GetSpeciesOccurrenceAtTime(result.Species, item.StartTime)
 
 	// Compute detection time once to ensure Result has consistent timestamp
 	// This prevents date mismatch around midnight when time.Now() would be called separately
@@ -1229,7 +1229,7 @@ func (p *Processor) createDetection(settings *conf.Settings, item classifier.Res
 		scientificName, commonName, speciesCode, rawScientificName,
 		float64(result.Confidence),
 		item.Source, clipName,
-		item.ElapsedTime, occurrence,
+		item.ElapsedTime, occurrence, occurrenceValid,
 		item.ModelID,
 		result.Species)
 
@@ -1264,7 +1264,7 @@ func (p *Processor) createDetectionResult(settings *conf.Settings,
 	scientificName, commonName, speciesCode, rawScientificName string,
 	confidence float64,
 	source datastore.AudioSource, clipName string,
-	elapsedTime time.Duration, occurrence float64,
+	elapsedTime time.Duration, occurrence float64, occurrenceValid bool,
 	modelID string,
 	rawLabel string) detection.Result {
 
@@ -1283,16 +1283,17 @@ func (p *Processor) createDetectionResult(settings *conf.Settings,
 			Code:              speciesCode,
 			RawScientificName: rawScientificName,
 		},
-		Confidence:     math.Round(confidence*100) / 100,
-		Latitude:       settings.BirdNET.Latitude,
-		Longitude:      settings.BirdNET.Longitude,
-		Threshold:      float64(modelGlobalConfidenceThreshold(settings, modelID)),
-		Sensitivity:    settings.BirdNET.Sensitivity,
-		ClipName:       clipName,
-		ProcessingTime: elapsedTime,
-		Occurrence:     math.Max(0.0, math.Min(1.0, occurrence)),
-		Model:          classifier.DetectionModelInfoForID(modelID),
-		RawLabel:       rawLabel,
+		Confidence:      math.Round(confidence*100) / 100,
+		Latitude:        settings.BirdNET.Latitude,
+		Longitude:       settings.BirdNET.Longitude,
+		Threshold:       float64(modelGlobalConfidenceThreshold(settings, modelID)),
+		Sensitivity:     settings.BirdNET.Sensitivity,
+		ClipName:        clipName,
+		ProcessingTime:  elapsedTime,
+		Occurrence:      math.Max(0.0, math.Min(1.0, occurrence)),
+		OccurrenceValid: occurrenceValid,
+		Model:           classifier.DetectionModelInfoForID(modelID),
+		RawLabel:        rawLabel,
 	}
 }
 
@@ -1602,22 +1603,23 @@ func (p *Processor) buildClipPath(settings *conf.Settings, scientificName string
 }
 
 // shouldDiscardDetection checks if a detection should be discarded based on various criteria.
-// The caller provides a settings snapshot and the precomputed minDetections (from
-// MinDetectionsForModel) to avoid redundant settings fetches and ensure
+// The caller provides a settings snapshot and the precomputed confirmation requirement
+// (from effectiveMinDetections) to avoid redundant settings fetches and ensure
 // consistency within a single flush cycle. priv is the detection's privacyCheck
 // for that cycle; the privacy filter discards a detection when the source's
 // latest speech hit in it is at or after the saved clip's begin less
 // privacyClipGuard.
-func (p *Processor) shouldDiscardDetection(item *PendingDetection, settings *conf.Settings, minDetections int, priv *privacyCheck) (shouldDiscard bool, reason string) {
+func (p *Processor) shouldDiscardDetection(item *PendingDetection, settings *conf.Settings, required minDetectionRequirement, priv *privacyCheck) (shouldDiscard bool, reason string) {
 	// Check minimum detection count
-	if item.Count < minDetections {
+	if item.Count < required.count {
 		GetLogger().Debug("Detection discarded due to insufficient count",
 			logger.String("species", item.Detection.Result.Species.CommonName),
 			logger.Int("count", item.Count),
-			logger.Int("minimum_required", minDetections),
+			logger.Int("minimum_required", required.count),
+			logger.Bool("rarity_filter_applied", required.rarityApplied),
 			logger.String("source", p.getDisplayNameForSource(item.Source)),
 			logger.String("operation", "minimum_count_filter"))
-		return true, fmt.Sprintf("false positive, matched %d/%d times", item.Count, minDetections)
+		return true, required.discardReason(item.Count)
 	}
 
 	// Check privacy filter
@@ -1900,14 +1902,14 @@ func (p *Processor) flushPendingDetections() (pendingCount, flushedCount int) {
 		}
 
 		speciesName := strings.ToLower(item.Detection.Result.Species.CommonName)
-		itemMinDetections := MinDetectionsForModel(settings, item.BestModelID, baseOverlap)
+		required := effectiveMinDetections(settings, &item, baseOverlap)
 
 		// One consistent read of the clip span, the source's latest speech hit and
 		// the privacy coverage: a chunk writes its hit before it publishes the
 		// coverage that includes it, so coverage seen here never lacks its hits.
 		priv := p.checkPrivacy(settings, &item, now)
 
-		if shouldDiscard, reason := p.shouldDiscardDetection(&item, settings, itemMinDetections, &priv); shouldDiscard {
+		if shouldDiscard, reason := p.shouldDiscardDetection(&item, settings, required, &priv); shouldDiscard {
 			// Aggregate daylight-filter discards into the periodic pipeline-stats
 			// summary so a user who sees zero saved detections has an at-a-glance
 			// signal that a filter is eating them. The per-detection log stays at
@@ -1952,7 +1954,8 @@ func (p *Processor) flushPendingDetections() (pendingCount, flushedCount int) {
 			logger.Bool("deadline_reached", true),
 			logger.Int("total_count", item.Count),
 			logger.Int("model_count", len(item.ModelContributions)),
-			logger.Int("required", itemMinDetections),
+			logger.Int("required", required.count),
+			logger.Bool("rarity_filter_applied", required.rarityApplied),
 			logger.String("operation", "flush_detection"))
 
 		p.processApprovedDetection(&item, speciesName, settings)

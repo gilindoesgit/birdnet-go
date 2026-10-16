@@ -178,6 +178,9 @@ var hotReloadRegistry = map[string]hotReloadEntry{
 	// analysis cadence cap (falsePositiveFilterActiveChanged in the detector table).
 	"Realtime.FalsePositiveFilter": {categories: []hotReloadCategory{hotReloadFresh}, action: "reconfigure_audio_sources"},
 
+	// -- RarityFilter (read from the per-flush settings snapshot) --
+	"Realtime.RarityFilter": {categories: []hotReloadCategory{hotReloadFresh}},
+
 	// -- Log (OBS) --
 	"Realtime.Log": {categories: []hotReloadCategory{hotReloadFresh}},
 

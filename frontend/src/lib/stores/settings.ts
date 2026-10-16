@@ -108,6 +108,23 @@ export interface FalsePositiveFilterSettings {
   level: number; // 0=Off, 1=Lenient, 2=Moderate, 3=Balanced, 4=Strict, 5=Maximum
 }
 
+/** A rarity band: species with occurrence below maxOccurrence need minDetections confirmations. */
+export interface RarityBand {
+  maxOccurrence: number; // (0, 1]
+  minDetections: number; // 1-10
+}
+
+export interface RarityFilterSettings {
+  enabled: boolean;
+  bands: RarityBand[];
+}
+
+/** Default rarity bands, matching the backend defaults (internal/conf/defaults.go). */
+export const DEFAULT_RARITY_BANDS: readonly RarityBand[] = [
+  { maxOccurrence: 0.1, minDetections: 3 },
+  { maxOccurrence: 0.9, minDetections: 2 },
+];
+
 export interface RangeFilterSettings {
   threshold: number;
   passUnmappedSpecies: boolean;
@@ -620,6 +637,7 @@ export interface RealtimeSettings {
   dashboard?: Dashboard;
   dynamicThreshold?: DynamicThresholdSettings;
   falsePositiveFilter?: FalsePositiveFilterSettings;
+  rarityFilter?: RarityFilterSettings;
   log?: {
     enabled: boolean;
     path: string;
@@ -990,6 +1008,10 @@ function createEmptySettings(): SettingsFormData & { security: SecuritySettings 
       falsePositiveFilter: {
         level: 0,
       },
+      rarityFilter: {
+        enabled: false,
+        bands: DEFAULT_RARITY_BANDS.map(band => ({ ...band })),
+      },
       audio: {
         sources: [],
         source: '',
@@ -1343,6 +1365,12 @@ export const supportSettings = derived(settingsStore, $store => ({
 export const dynamicThresholdSettings = derived(
   settingsStore,
   $store => $store.formData.realtime?.dynamicThreshold
+);
+
+// Rarity filter settings derived store
+export const rarityFilterSettings = derived(
+  settingsStore,
+  $store => $store.formData.realtime?.rarityFilter
 );
 
 // Species tracking settings derived store
