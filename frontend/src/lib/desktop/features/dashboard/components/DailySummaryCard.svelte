@@ -135,8 +135,13 @@ Responsive Breakpoints:
   // The union mirrors the subset of TimeOfDayIcon's `timeOfDay` prop used here.
   type TimeOfDayValue = 'night' | 'sunrise' | 'day' | 'sunset';
   const DAYPART_HOURS = 6;
-  const DAYPARTS: { startHour: number; timeOfDay: TimeOfDayValue }[] = [
-    { startHour: 0, timeOfDay: 'night' },
+  interface Daypart {
+    startHour: number;
+    timeOfDay: TimeOfDayValue;
+  }
+  const FIRST_DAYPART: Daypart = { startHour: 0, timeOfDay: 'night' };
+  const DAYPARTS: Daypart[] = [
+    FIRST_DAYPART,
     { startHour: 6, timeOfDay: 'sunrise' },
     { startHour: 12, timeOfDay: 'day' },
     { startHour: 18, timeOfDay: 'sunset' },
@@ -751,7 +756,7 @@ Responsive Breakpoints:
     daypartOverride ??
       (isToday ? Math.floor(currentServerHour / DAYPART_HOURS) : DAYPARTS.length - 1)
   );
-  const activeDaypart = $derived(safeArrayAccess(DAYPARTS, activeDaypartIndex) ?? DAYPARTS[0]!);
+  const activeDaypart = $derived(safeArrayAccess(DAYPARTS, activeDaypartIndex) ?? FIRST_DAYPART);
   const activeDaypartStart = $derived(activeDaypart.startHour);
   const activeDaypartEnd = $derived(activeDaypart.startHour + DAYPART_HOURS);
   const activeDaypartName = $derived.by(() => {
