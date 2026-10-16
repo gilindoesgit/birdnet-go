@@ -141,7 +141,6 @@ export type TranslationKey =
   | 'common.aria.imageCredit' // params: name
   | 'common.labels.confidence'
   | 'common.labels.github'
-  | 'common.values.yes'
   | 'common.values.no'
   | 'common.values.unknown'
   | 'common.modal.confirmAction'
@@ -709,8 +708,6 @@ export type TranslationKey =
   | 'detections.titles.speciesAll' // params: species
   | 'detections.titles.search' // params: query
   | 'detections.titles.allDetections' // params: date
-  | 'detections.detail.species'
-  | 'detections.detail.observation'
   | 'detections.detail.aria.downloadAudioClip' // params: name
   | 'detections.detail.aria.compareSounds' // params: name
   | 'detections.detail.aria.viewOnAllAboutBirds' // params: name
@@ -836,7 +833,6 @@ export type TranslationKey =
   | 'detections.media.compareSounds'
   | 'detections.media.viewOnAllAboutBirds'
   | 'detections.media.viewOnWikipedia'
-  | 'detections.tabs.overview'
   | 'detections.tabs.taxonomy'
   | 'detections.tabs.history'
   | 'detections.tabs.notes'
@@ -892,7 +888,6 @@ export type TranslationKey =
   | 'species.synonyms.errors.unknownSpecies'
   | 'species.synonyms.errors.duplicateKey'
   | 'species.synonyms.errors.emptyUpdatedName'
-  | 'species.tracking.title'
   | 'species.tracking.newSpecies'
   | 'species.tracking.newThisYear'
   | 'species.tracking.newThisSeason'

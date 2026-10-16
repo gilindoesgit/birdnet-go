@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Kyllä",
       "no": "Ei",
       "unknown": "Tuntematon"
     },
@@ -888,8 +887,6 @@
       "allDetections": "Kaikki havainnot päivänä {date}"
     },
     "detail": {
-      "species": "Laji",
-      "observation": "Havainto",
       "aria": {
         "downloadAudioClip": "Lataa äänileike {name} havainnolle",
         "compareSounds": "Kuuntele lajin {name} tunnistusäänitteitä All About Birds -sivustolla (avautuu uuteen välilehteen)",
@@ -1047,7 +1044,6 @@
       "viewOnWikipedia": "Wikipedia"
     },
     "tabs": {
-      "overview": "Yleiskatsaus",
       "taxonomy": "Taksonomia",
       "history": "Historia",
       "notes": "Huomiot"
@@ -1131,7 +1127,6 @@
       }
     },
     "tracking": {
-      "title": "Lajiseuranta",
       "newSpecies": "Uusi laji",
       "newThisYear": "Ensimmäinen tänä vuonna",
       "newThisSeason": "Ensimmäinen tällä kaudella",

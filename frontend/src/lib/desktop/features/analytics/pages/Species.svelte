@@ -250,9 +250,10 @@
       const byCommonName = new Map<string, number>();
       for (const entry of payload.species ?? []) {
         byScientificName.set(entry.scientificName, entry.score);
-        const separator = entry.label?.indexOf('_') ?? -1;
+        const label = entry.label ?? '';
+        const separator = label.indexOf('_');
         if (separator > 0) {
-          byCommonName.set(entry.label!.slice(separator + 1), entry.score);
+          byCommonName.set(label.slice(separator + 1), entry.score);
         }
       }
       occurrenceScores = { byScientificName, byCommonName };

@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Ja",
       "no": "Nee",
       "unknown": "Onbekend"
     },
@@ -888,8 +887,6 @@
       "allDetections": "Alles herkend op {date}"
     },
     "detail": {
-      "species": "Soort",
-      "observation": "Waarneming",
       "aria": {
         "downloadAudioClip": "Audiofragment downloaden voor {name} detectie",
         "compareSounds": "Luister naar determinatieopnames voor {name} op All About Birds (opent in een nieuw tabblad)",
@@ -1047,7 +1044,6 @@
       "viewOnWikipedia": "Wikipedia"
     },
     "tabs": {
-      "overview": "Overzicht",
       "taxonomy": "Taxonomie",
       "history": "Geschiedenis",
       "notes": "Notities"
@@ -1131,7 +1127,6 @@
       }
     },
     "tracking": {
-      "title": "Soortmonitoring",
       "newSpecies": "Nieuwe soort",
       "newThisYear": "Eerste keer dit jaar",
       "newThisSeason": "Eerste keer dit seizoen",

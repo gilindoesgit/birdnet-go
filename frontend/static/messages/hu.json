@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Igen",
       "no": "Nem",
       "unknown": "Ismeretlen"
     },
@@ -888,8 +887,6 @@
       "allDetections": "Összes detektálás {date}-án"
     },
     "detail": {
-      "species": "Faj",
-      "observation": "Megfigyelés",
       "aria": {
         "downloadAudioClip": "Hangklip letöltése: {name} észleléshez",
         "compareSounds": "Hallgassa meg a(z) {name} azonosító felvételeit az All About Birds oldalon (új lapon nyílik meg)",
@@ -1047,7 +1044,6 @@
       "viewOnWikipedia": "Wikipédia"
     },
     "tabs": {
-      "overview": "Áttekintés",
       "taxonomy": "Taxonómia",
       "history": "Előzmények",
       "notes": "Megjegyzések"
@@ -1131,7 +1127,6 @@
       }
     },
     "tracking": {
-      "title": "Faj követés",
       "newSpecies": "Új faj",
       "newThisYear": "Első az idén",
       "newThisSeason": "Első ebben az évszakban",

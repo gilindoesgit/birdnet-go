@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Tak",
       "no": "Nie",
       "unknown": "Nieznany"
     },
@@ -888,8 +887,6 @@
       "allDetections": "Wszystkie Detekcje dla {date}"
     },
     "detail": {
-      "species": "Gatunek",
-      "observation": "Obserwacja",
       "aria": {
         "downloadAudioClip": "Pobierz klip audio dla detekcji {name}",
         "compareSounds": "Odsłuchaj nagrania identyfikacyjne dla {name} w serwisie All About Birds (otwiera się w nowej karcie)",
@@ -1047,7 +1044,6 @@
       "viewOnWikipedia": "Wikipedia"
     },
     "tabs": {
-      "overview": "Przegląd",
       "taxonomy": "Taksonomia",
       "history": "Historia",
       "notes": "Notatki"
@@ -1131,7 +1127,6 @@
       }
     },
     "tracking": {
-      "title": "Śledzenie gatunków",
       "newSpecies": "Nowy gatunek",
       "newThisYear": "Pierwszy raz w tym roku",
       "newThisSeason": "Pierwszy raz w tym sezonie",

@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Áno",
       "no": "Nie",
       "unknown": "Neznáme"
     },
@@ -888,8 +887,6 @@
       "allDetections": "Všetky detekcie pre dátum {date}"
     },
     "detail": {
-      "species": "Druh",
-      "observation": "Pozorovanie",
       "aria": {
         "downloadAudioClip": "Stiahnuť zvukový záznam pre detekciu {name}",
         "compareSounds": "Vypočuť si identifikačné nahrávky druhu {name} na All About Birds (otvorí sa na novej karte)",
@@ -1047,7 +1044,6 @@
       "viewOnWikipedia": "Wikipédia"
     },
     "tabs": {
-      "overview": "Prehľad",
       "taxonomy": "Taxonómia",
       "history": "História",
       "notes": "Poznámky"
@@ -1131,7 +1127,6 @@
       }
     },
     "tracking": {
-      "title": "Sledovanie druhov",
       "newSpecies": "Nový druh",
       "newThisYear": "Prvýkrát tento rok",
       "newThisSeason": "Prvýkrát túto sezónu",

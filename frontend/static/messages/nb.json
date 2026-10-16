@@ -148,7 +148,6 @@
       "github": "GitHub"
     },
     "values": {
-      "yes": "Ja",
       "no": "Nei",
       "unknown": "Ukjent"
     },
@@ -888,8 +887,6 @@
       "allDetections": "Alle registreringer for {date}"
     },
     "detail": {
-      "species": "Art",
-      "observation": "Observasjon",
       "aria": {
         "downloadAudioClip": "Last ned lydklipp for {name}-deteksjon",
         "compareSounds": "Lytt til identifikasjonsopptak for {name} på All About Birds (åpnes i en ny fane)",
@@ -1047,7 +1044,6 @@
       "viewOnWikipedia": "Wikipedia"
     },
     "tabs": {
-      "overview": "Oversikt",
       "taxonomy": "Taksonomi",
       "history": "Historikk",
       "notes": "Notater"
@@ -1131,7 +1127,6 @@
       }
     },
     "tracking": {
-      "title": "Artssporing",
       "newSpecies": "Ny art",
       "newThisYear": "Første gang i år",
       "newThisSeason": "Første gang denne sesongen",
