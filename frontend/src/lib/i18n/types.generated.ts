@@ -843,7 +843,6 @@ export type TranslationKey =
   | 'detections.metadata.status'
   | 'detections.metadata.locked'
   | 'detections.history.title'
-  | 'detections.history.comingSoon'
   | 'detections.notes.title'
   | 'detections.notes.noComments'
   | 'detections.aria.loading'

@@ -495,7 +495,7 @@
         "metricExceeded": "Valeur actuelle : {value}% (seuil : {threshold}%)",
         "detectionOccurred": "{species_name} détecté avec {confidence}% de confiance",
         "errorOccurred": "{error}",
-        "errorWithSource": "{source_name}\u00a0: {error}",
+        "errorWithSource": "{source_name} : {error}",
         "disconnected": "{source_name} déconnecté",
         "error": {
           "authError": "Échec de l'authentification - vérifiez votre clé API ou vos identifiants",
@@ -1059,8 +1059,7 @@
       "locked": "Verrouillé"
     },
     "history": {
-      "title": "Historique de détection",
-      "comingSoon": "Suivi de l'historique à venir..."
+      "title": "Historique de détection"
     },
     "notes": {
       "title": "Notes et commentaires",
