@@ -25,19 +25,19 @@ import (
 // database/sql's default connection pool can create multiple connections,
 // each with its own independent in-memory database, leading to flaky "no
 // such table" errors under concurrent query paths.
-func openSQLiteTestDB(t *testing.T) *gorm.DB {
-	t.Helper()
+func openSQLiteTestDB(tb testing.TB) *gorm.DB {
+	tb.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
-	require.NoError(t, err, "open in-memory sqlite")
+	require.NoError(tb, err, "open in-memory sqlite")
 	sqlDB, err := db.DB()
-	require.NoError(t, err, "retrieve *sql.DB from gorm")
+	require.NoError(tb, err, "retrieve *sql.DB from gorm")
 	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		// assert, not require: a failing require calls runtime.Goexit from the
 		// cleanup goroutine and would abort any remaining t.Cleanup functions.
-		assert.NoError(t, sqlDB.Close(), "close in-memory sqlite")
+		assert.NoError(tb, sqlDB.Close(), "close in-memory sqlite")
 	})
 	return db
 }

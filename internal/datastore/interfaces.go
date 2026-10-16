@@ -2297,24 +2297,7 @@ func applyCommonFilters(query *gorm.DB, filters *SearchFilters, ds *DataStore) *
 
 	// --- Dynamic TimeOfDay Filter ---
 	if (filters.TimeOfDay == TimeOfDayDay || filters.TimeOfDay == TimeOfDayNight || filters.TimeOfDay == TimeOfDaySunrise || filters.TimeOfDay == TimeOfDaySunset) && ds.SunCalc != nil && ds.DB != nil { // Include sunrise/sunset
-		dateConditions, err := buildTimeOfDayConditions(filters.TimeOfDay, filters.DateStart, filters.DateEnd, ds.SunCalc, ds.DB)
-		switch {
-		case err != nil:
-			GetLogger().Warn("Failed to build TimeOfDay conditions, skipping filter",
-				logger.Error(err))
-		case len(dateConditions) > 0:
-			GetLogger().Debug("Successfully built TimeOfDay conditions",
-				logger.Int("condition_count", len(dateConditions)),
-				logger.String("filter", filters.TimeOfDay))
-			combinedCondition := ds.DB.Where(dateConditions[0])
-			for i := 1; i < len(dateConditions); i++ {
-				combinedCondition = combinedCondition.Or(dateConditions[i])
-			}
-			query = query.Where(combinedCondition)
-		default:
-			GetLogger().Debug("No TimeOfDay conditions were generated",
-				logger.String("filter", filters.TimeOfDay))
-		}
+		query = applySimpleTimeOfDayFilter(query, filters, ds.SunCalc)
 	} else {
 		GetLogger().Debug("Skipping TimeOfDay filter",
 			logger.String("filter_value", filters.TimeOfDay),
@@ -2329,144 +2312,31 @@ func applyCommonFilters(query *gorm.DB, filters *SearchFilters, ds *DataStore) *
 	return query
 }
 
-// buildTimeOfDayConditions generates the WHERE conditions for day/night/sunrise/sunset
-// filtering of a single period over the [startDateStr, endDateStr] range.
-//
-// It takes the three values it needs rather than a *SearchFilters so the advanced
-// search path (which carries its date range as a *DateRange and its periods as a
-// slice) can reuse it instead of re-deriving sun events with a second, drifting
-// implementation. Each returned condition covers one calendar date; callers OR them.
-func buildTimeOfDayConditions(timeOfDay, startDateStr, endDateStr string, sc *suncalc.SunCalc, db *gorm.DB) ([]*gorm.DB, error) {
-	// Default to a reasonable date range if no dates are provided
-	switch {
-	case startDateStr == "" && endDateStr == "":
-		// Use past year instead of 90 days
-		today := time.Now()
-		endDateStr = today.Format(time.DateOnly)
-		startDateStr = today.AddDate(-1, 0, 0).Format(time.DateOnly) // 1 year ago
-		GetLogger().Info("TimeOfDay filter applied without date range, defaulting to last year",
-			logger.String("start_date", startDateStr),
-			logger.String("end_date", endDateStr))
-	case startDateStr == "":
-		// If only end date is provided, use 1 year before that date as start
-		endDate, err := time.Parse(time.DateOnly, endDateStr)
-		if err == nil {
-			startDateStr = endDate.AddDate(-1, 0, 0).Format(time.DateOnly)
-		} else {
-			startDateStr = endDateStr // Fallback if parsing fails
-		}
-	case endDateStr == "":
-		// If only start date is provided, use that date +1 year or today (whichever is earlier)
-		startDate, err := time.Parse(time.DateOnly, startDateStr)
-		if err == nil {
-			endDate := startDate.AddDate(1, 0, 0)
-			today := time.Now()
-			if endDate.After(today) {
-				endDate = today
-			}
-			endDateStr = endDate.Format(time.DateOnly)
-		} else {
-			endDateStr = startDateStr // Fallback if parsing fails
-		}
-	}
-
-	// Parse dates in local timezone to match how notes store their times.
-	// Using time.Parse would return UTC, causing a ~1 second discrepancy in
-	// sunrise/sunset calculations vs the actual note timestamps.
-	startDate, err := time.ParseInLocation(time.DateOnly, startDateStr, time.Local)
+// applySimpleTimeOfDayFilter applies the simple search's single time-of-day
+// period over its date range. If the sun-event bounds cannot be resolved, or no
+// date in range has any, the filter is skipped rather than failing the search.
+func applySimpleTimeOfDayFilter(query *gorm.DB, filters *SearchFilters, sc *suncalc.SunCalc) *gorm.DB {
+	bounds, err := resolveTimeOfDayBounds(filters.DateStart, filters.DateEnd, sc)
 	if err != nil {
-		return nil, errors.New(err).
-			Component("datastore").
-			Category(errors.CategoryValidation).
-			Context("operation", "build_time_of_day_conditions").
-			Context("start_date", startDateStr).
-			Build()
+		GetLogger().Warn("Failed to build TimeOfDay conditions, skipping filter",
+			logger.Error(err))
+		return query
 	}
-	endDate, err := time.ParseInLocation(time.DateOnly, endDateStr, time.Local)
+	if len(bounds) == 0 {
+		GetLogger().Debug("No TimeOfDay conditions were generated",
+			logger.String("filter", filters.TimeOfDay))
+		return query
+	}
+	filtered, err := applyTimeOfDaySunFilter(query, []string{filters.TimeOfDay}, bounds)
 	if err != nil {
-		return nil, errors.New(err).
-			Component("datastore").
-			Category(errors.CategoryValidation).
-			Context("operation", "build_time_of_day_conditions").
-			Context("end_date", endDateStr).
-			Build()
+		GetLogger().Warn("Failed to build TimeOfDay conditions, skipping filter",
+			logger.Error(err))
+		return query
 	}
-
-	if endDate.Before(startDate) {
-		return nil, errors.Newf("end date cannot be before start date").
-			Component("datastore").
-			Category(errors.CategoryValidation).
-			Context("operation", "build_time_of_day_conditions").
-			Context("start_date", startDateStr).
-			Context("end_date", endDateStr).
-			Build()
-	}
-
-	// Limit date range to avoid excessively long queries (increased to 365 days)
-	if endDate.Sub(startDate).Hours() > 365*24 {
-		return nil, errors.Newf("date range for TimeOfDay filter cannot exceed 365 days").
-			Component("datastore").
-			Category(errors.CategoryValidation).
-			Context("operation", "build_time_of_day_conditions").
-			Context("start_date", startDateStr).
-			Context("end_date", endDateStr).
-			Build()
-	}
-
-	// Pre-allocate conditions slice based on date range
-	dayCount := int(endDate.Sub(startDate).Hours()/24) + 1
-	conditions := make([]*gorm.DB, 0, dayCount)
-	window := suncalc.SunEventWindow // sunrise/sunset transition half-width (single source of truth)
-
-	// Build one condition per date using that date's OWN sun events, so the SQL
-	// filter matches the per-row classifier (suncalc.ClassifyTimeOfDay), which also
-	// classifies each detection against its own date's sun events. GetSunEventTimes
-	// caches internally, so computing per date rather than once per representative
-	// week day adds no meaningful cost while removing the day-to-day drift that let
-	// the filter diverge from the per-row label near the solstices (where sunrise
-	// and sunset shift enough within a week to flip a window across midnight).
-	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
-		dateStr := d.Format(time.DateOnly)
-		sunTimes, err := sc.GetSunEventTimes(sunEventAnchor(d))
-		if err != nil {
-			GetLogger().Warn("Could not get sun times for date, skipping for TimeOfDay filter",
-				logger.String("date", dateStr),
-				logger.Error(err))
-			continue
-		}
-
-		// buildTimeOfDayClause handles windows and daytime spans that cross midnight
-		// (for example a high-latitude summer sunset whose local wall-clock falls after
-		// 00:00), which a naive start<=end range test silently drops or inverts.
-		//
-		// sunTimes carries its wall clock in the station's coordinate-derived timezone
-		// (see suncalc.NewSunCalc), which does not necessarily match time.Local (the
-		// server process's OS timezone). notes.time is always written in time.Local
-		// (see the date parsing above), so every bound must be converted into time.Local
-		// before formatting - otherwise the two wall clocks are compared as if they were
-		// the same, shifting the filter by whatever offset separates the two zones.
-		query, args, ok := buildTimeOfDayClause(timeOfDay, &timeOfDayBounds{
-			date:         dateStr,
-			sunrise:      sunTimes.Sunrise.In(time.Local).Format(time.TimeOnly),
-			sunset:       sunTimes.Sunset.In(time.Local).Format(time.TimeOnly),
-			sunriseStart: sunTimes.Sunrise.Add(-window).In(time.Local).Format(time.TimeOnly),
-			sunriseEnd:   sunTimes.Sunrise.Add(window).In(time.Local).Format(time.TimeOnly),
-			sunsetStart:  sunTimes.Sunset.Add(-window).In(time.Local).Format(time.TimeOnly),
-			sunsetEnd:    sunTimes.Sunset.Add(window).In(time.Local).Format(time.TimeOnly),
-		})
-		if !ok {
-			// Should not happen due to sanitise, but skip if it does
-			continue
-		}
-		conditions = append(conditions, db.Where(query, args...))
-	}
-
-	// Log summary of how many conditions were created
-	GetLogger().Info("Created date-specific conditions for TimeOfDay filter",
-		logger.Int("condition_count", len(conditions)),
-		logger.Int("day_range", int(endDate.Sub(startDate).Hours()/24)+1))
-
-	return conditions, nil
+	GetLogger().Debug("Successfully built TimeOfDay conditions",
+		logger.Int("bounds_count", len(bounds)),
+		logger.String("filter", filters.TimeOfDay))
+	return filtered
 }
 
 // sunEventAnchorHour is the hour-of-day used to pick which station-local date a
@@ -2486,7 +2356,7 @@ const sunEventAnchorHour = 12
 // to the station date covering the larger share of that day's rows.
 //
 // The value matters less than the fact that both sides use it: the SQL filter
-// (buildTimeOfDayConditions) and the per-row label (getSunEventsForDate) must
+// (resolveTimeOfDayBounds) and the per-row label (getSunEventsForDate) must
 // resolve the same sun events for a given notes.date, or a detection can be
 // returned by the "sunset" filter while being labelled "day".
 func sunEventAnchor(localDate time.Time) time.Time {
@@ -2494,92 +2364,6 @@ func sunEventAnchor(localDate time.Time) time.Time {
 	// midnight, which lands at 11:00 or 13:00 across a DST transition.
 	return time.Date(localDate.Year(), localDate.Month(), localDate.Day(),
 		sunEventAnchorHour, 0, 0, 0, localDate.Location())
-}
-
-// timeOfDayBounds carries the "HH:MM:SS" clock strings buildTimeOfDayClause needs
-// for one date's sun events: the date, the sunrise and sunset event times, and
-// their +/- SunEventWindow boundaries. Grouping them into a struct avoids a long
-// positional parameter list where a same-typed argument could be transposed
-// unnoticed.
-type timeOfDayBounds struct {
-	date         string
-	sunrise      string
-	sunset       string
-	sunriseStart string
-	sunriseEnd   string
-	sunsetStart  string
-	sunsetEnd    string
-}
-
-// buildTimeOfDayClause builds the parameterized WHERE fragment selecting rows on
-// the given date whose notes.time falls in the requested time-of-day category.
-// Boundary values are "HH:MM:SS" strings, which are lexicographically ordered to
-// match the stored notes.time format. A window whose start is later than its end
-// has crossed midnight (for example a high-latitude summer sunset window
-// [23:20, 00:20]); in that case the between/outside test switches to its
-// wraparound form so detections in the after-midnight tail are still matched,
-// consistent with the per-row classifier suncalc.ClassifyTimeOfDay. It returns
-// ok=false for an unknown category.
-func buildTimeOfDayClause(timeOfDay string, b *timeOfDayBounds) (query string, args []any, ok bool) {
-	sunriseWin, sunriseArgs := betweenTimeFragment(b.sunriseStart, b.sunriseEnd)
-	sunsetWin, sunsetArgs := betweenTimeFragment(b.sunsetStart, b.sunsetEnd)
-	dayArc, dayArgs := forwardArcFragment(b.sunrise, b.sunset)
-	switch timeOfDay {
-	case TimeOfDaySunrise:
-		return "notes.date = ? AND " + sunriseWin, append([]any{b.date}, sunriseArgs...), true
-	case TimeOfDaySunset:
-		// Exclude the sunrise window: the per-row classifier gives sunrise priority,
-		// so a timestamp inside both windows (possible when the two overlap at extreme
-		// high latitude) is sunrise, not sunset. Without this the sunset filter would
-		// over-match those rows.
-		clauseArgs := append([]any{b.date}, sunsetArgs...)
-		clauseArgs = append(clauseArgs, sunriseArgs...)
-		return "notes.date = ? AND " + sunsetWin + " AND NOT " + sunriseWin, clauseArgs, true
-	case TimeOfDayDay:
-		// On the daytime arc [sunrise, sunset) but outside both transition windows.
-		// The arc wraps past midnight when the local sunset falls after 00:00 (high
-		// latitude summer, e.g. Iceland/Norway near the solstice); the window
-		// exclusions keep this consistent with the classifier, which checks the
-		// sunrise and sunset windows before the daytime span.
-		clauseArgs := append([]any{b.date}, dayArgs...)
-		clauseArgs = append(clauseArgs, sunriseArgs...)
-		clauseArgs = append(clauseArgs, sunsetArgs...)
-		return "notes.date = ? AND " + dayArc + " AND NOT " + sunriseWin + " AND NOT " + sunsetWin, clauseArgs, true
-	case TimeOfDayNight:
-		// The complement: outside both transition windows and off the daytime arc.
-		// This matches the classifier's else-branch by construction in every regime
-		// (normal, a sub-hour day or night with overlapping windows, and days whose
-		// local sunset falls after midnight).
-		clauseArgs := append([]any{b.date}, sunriseArgs...)
-		clauseArgs = append(clauseArgs, sunsetArgs...)
-		clauseArgs = append(clauseArgs, dayArgs...)
-		return "notes.date = ? AND NOT " + sunriseWin + " AND NOT " + sunsetWin + " AND NOT " + dayArc, clauseArgs, true
-	default:
-		return "", nil, false
-	}
-}
-
-// betweenTimeFragment builds the notes.time predicate for an inclusive [start,
-// end] clock window, using the wraparound form (an OR rather than an AND) when the
-// window crosses midnight, i.e. start is lexicographically later than end (for
-// example a high-latitude sunset window [23:20, 00:20]).
-func betweenTimeFragment(start, end string) (frag string, args []any) {
-	if start <= end {
-		return "(notes.time >= ? AND notes.time <= ?)", []any{start, end}
-	}
-	return "(notes.time >= ? OR notes.time <= ?)", []any{start, end}
-}
-
-// forwardArcFragment builds the notes.time predicate for the forward arc from
-// start (inclusive) to end (exclusive) on the 24-hour clock: the plain interval
-// [start, end) when start <= end, or the wraparound form when start > end (a
-// daytime span whose local sunset falls after midnight). Mirrors suncalc's
-// inForwardArc so the SQL filter and the per-row classifier agree.
-func forwardArcFragment(start, end string) (frag string, args []any) {
-	if start <= end {
-		return "(notes.time >= ? AND notes.time < ?)", []any{start, end}
-	}
-	return "(notes.time >= ? OR notes.time < ?)", []any{start, end}
 }
 
 // SearchDetections retrieves detections based on the given filters
@@ -2755,7 +2539,7 @@ func (ds *DataStore) SearchDetections(filters *SearchFilters) ([]DetectionRecord
 // timestamp, which made the whole date's events depend on which row happened to
 // be scanned first - two rows on the same date could seed different events across
 // queries, and neither necessarily matched the bounds the SQL filter
-// (buildTimeOfDayConditions) built for that date. Both sides now go through
+// (resolveTimeOfDayBounds) resolved for that date. Both sides now go through
 // sunEventAnchor, so the filter and the label always agree.
 //
 // There is deliberately no cache here: it relies on the SunCalc's own per-date

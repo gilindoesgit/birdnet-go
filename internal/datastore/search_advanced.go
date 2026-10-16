@@ -383,7 +383,7 @@ func NormalizeTimeOfDayPeriods(periods []string) []string {
 // applyTimeOfDayFilter applies time-of-day filtering to an advanced-search query.
 //
 // It resolves each requested period against the station's real sun events, using
-// the same per-date condition builder as the simple search path, so the two
+// the same per-date bounds and predicates as the simple search path, so the two
 // endpoints cannot disagree about what "sunset" means. Multiple periods are OR-ed.
 // When sun events are unavailable (no SunCalc configured, i.e. no station
 // location), it falls back to the historical fixed clock windows rather than
@@ -398,40 +398,37 @@ func (ds *DataStore) applyTimeOfDayFilter(query *gorm.DB, periods []string, date
 		return applyTimeOfDayClockWindows(query, periods)
 	}
 
-	// buildTimeOfDayConditions needs a bounded date range: it emits one condition
-	// per calendar date and refuses ranges longer than a year. An unfiltered query
-	// has no range, in which case it defaults to the last year itself.
+	// resolveTimeOfDayBounds needs a bounded date range: it resolves sun events per
+	// calendar date and refuses ranges longer than a year. An unfiltered query has
+	// no range, in which case it defaults to the last year itself.
 	var startDateStr, endDateStr string
 	if dateRange != nil {
 		startDateStr = dateRange.Start.Format(time.DateOnly)
 		endDateStr = dateRange.End.Format(time.DateOnly)
 	}
 
-	var combined *gorm.DB
-	for _, period := range periods {
-		dateConditions, err := buildTimeOfDayConditions(period, startDateStr, endDateStr, ds.SunCalc, ds.DB)
-		if err != nil {
-			GetLogger().Warn("Failed to build advanced TimeOfDay conditions, falling back to clock windows",
-				logger.String("period", period),
-				logger.Error(err))
-			return applyTimeOfDayClockWindows(query, periods)
-		}
-		for _, cond := range dateConditions {
-			if combined == nil {
-				combined = ds.DB.Where(cond)
-				continue
-			}
-			combined = combined.Or(cond)
-		}
+	bounds, err := resolveTimeOfDayBounds(startDateStr, endDateStr, ds.SunCalc)
+	if err != nil {
+		GetLogger().Warn("Failed to build advanced TimeOfDay conditions, falling back to clock windows",
+			logger.String("periods", strings.Join(periods, ",")),
+			logger.Error(err))
+		return applyTimeOfDayClockWindows(query, periods)
 	}
-
-	if combined == nil {
+	if len(bounds) == 0 {
 		// No sun events could be resolved for any date in range; leaving the query
 		// unfiltered would return every row, so match nothing instead — the same
 		// outcome the caller asked for when no detection falls in the period.
 		return query.Where("1 = 0")
 	}
-	return query.Where(combined)
+
+	filtered, err := applyTimeOfDaySunFilter(query, periods, bounds)
+	if err != nil {
+		GetLogger().Warn("Failed to build advanced TimeOfDay conditions, falling back to clock windows",
+			logger.String("periods", strings.Join(periods, ",")),
+			logger.Error(err))
+		return applyTimeOfDayClockWindows(query, periods)
+	}
+	return filtered
 }
 
 // applyTimeOfDayClockWindows is the sun-event-free fallback: fixed local clock
