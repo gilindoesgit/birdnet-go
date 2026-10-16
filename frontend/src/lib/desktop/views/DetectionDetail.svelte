@@ -36,7 +36,17 @@
     hasSpeciesReferenceName,
   } from '$lib/utils/speciesLinks';
   import SourceBadge from '$lib/desktop/features/dashboard/components/SourceBadge.svelte';
-  import { Camera, Clock, History, StickyNote, Sun, Moon, Sunrise, Sunset, ExternalLink } from '@lucide/svelte';
+  import DetectionHistory from '$lib/desktop/features/detections/components/DetectionHistory.svelte';
+  import {
+    Camera,
+    Clock,
+    StickyNote,
+    Sun,
+    Moon,
+    Sunrise,
+    Sunset,
+    ExternalLink,
+  } from '@lucide/svelte';
 
   // Interface definitions for API responses
   interface SpeciesRarity {
@@ -809,7 +819,7 @@
           aria-hidden="false"
           tabindex="0"
         >
-          {@render historyTab()}
+          {@render historyTab(det)}
         </div>
       {:else if activeTab === 'review' && canReview && ReviewCard}
         <div
@@ -826,14 +836,8 @@
   </section>
 {/snippet}
 
-{#snippet historyTab()}
-  <section class="empty-state-section" aria-labelledby="history-heading">
-    <History class="empty-state-icon" />
-    <h3 id="history-heading" class="empty-state-heading">{t('detections.history.title')}</h3>
-    <p class="empty-state-text" role="status">
-      {t('detections.history.comingSoon')}
-    </p>
-  </section>
+{#snippet historyTab(det: Detection)}
+  <DetectionHistory scientificName={det.scientificName} />
 {/snippet}
 
 {#snippet notesTab(det: Detection)}

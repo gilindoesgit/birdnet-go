@@ -1059,8 +1059,7 @@
       "locked": "Locked"
     },
     "history": {
-      "title": "Detection History",
-      "comingSoon": "History tracking coming soon..."
+      "title": "Detection History"
     },
     "notes": {
       "title": "Notes & Comments",
