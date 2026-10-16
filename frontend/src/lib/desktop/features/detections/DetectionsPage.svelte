@@ -29,6 +29,11 @@
   let error = $state<string | null>(null);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Paging, sorting and Back/Forward can start a request before the previous one
+  // has answered. Only the latest may write to the page, so each new fetch aborts
+  // the one before it.
+  let detectionsController: AbortController | null = null;
+
   // The applied filter set, mirrored from the URL. The filter panel edits a draft
   // of this and only writes back on submit.
   let filters = $state<DetectionFilters>(emptyDetectionFilters());
@@ -185,6 +190,11 @@
 
   // Fetch detections data
   async function fetchDetections() {
+    detectionsController?.abort();
+    const controller = new AbortController();
+    detectionsController = controller;
+    const { signal } = controller;
+
     loading = true;
     error = null;
 
@@ -207,8 +217,12 @@
       queryString.append('includeWeather', 'true');
 
       const data = await fetchWithCSRF<PaginatedDetectionResponse>(
-        `/api/v2/detections?${queryString.toString()}`
+        `/api/v2/detections?${queryString.toString()}`,
+        { signal }
       );
+      // Check the captured signal, not the shared controller: a newer request has
+      // replaced detectionsController, and this response no longer matches the URL.
+      if (signal.aborted) return;
 
       // Validate numResults before using
       const validatedNumResults =
@@ -237,10 +251,16 @@
         showingTo: Math.min((queryParams.offset || 0) + (data.data?.length || 0), data.total || 0),
       };
     } catch (err) {
+      if (signal.aborted) return;
       error = err instanceof Error ? err.message : t('detections.errors.fetchFailed');
       logger.error('Error fetching detections:', err);
     } finally {
-      loading = false;
+      // A superseded request must not clear the loading flag of the one that
+      // replaced it.
+      if (detectionsController === controller) {
+        loading = false;
+        detectionsController = null;
+      }
     }
   }
 
@@ -361,6 +381,7 @@
 
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      detectionsController?.abort();
 
       // Clear any pending debounce timer
       if (debounceTimer) {
