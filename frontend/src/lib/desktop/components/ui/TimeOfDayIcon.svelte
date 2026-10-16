@@ -1,5 +1,7 @@
 <script lang="ts" module>
-  export type TimeOfDay = 'day' | 'night' | 'sunrise' | 'sunset' | 'dawn' | 'dusk';
+  import type { TimeOfDayValue } from '$lib/types/detection.types';
+
+  export type TimeOfDay = TimeOfDayValue;
 
   const TIME_OF_DAY_VALUES: ReadonlySet<string> = new Set<TimeOfDay>([
     'day',
