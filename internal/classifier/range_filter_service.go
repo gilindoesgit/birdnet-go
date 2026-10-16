@@ -790,19 +790,38 @@ func (rfs *rangeFilterService) predictFilter(date time.Time, week float32, setti
 	return results, nil
 }
 
-// getCachedSpeciesScores returns occurrence scores with per-day caching, ported
-// verbatim from BirdNET.getCachedSpeciesScores (the cache lives on the service now).
-// The caller supplies the settings snapshot so the cache key and the scored
-// prediction use one consistent generation.
-func (rfs *rangeFilterService) getCachedSpeciesScores(targetDate time.Time, settings *conf.Settings) (map[string]float64, error) {
-	// Composite cache key: date + rounded lat/lon + model.
-	day := targetDate.Format(time.DateOnly)
-	cacheKey := fmt.Sprintf("%s|%.4f,%.4f|%s",
-		day,
+// occurrenceCacheKey builds the composite occurrence-cache key (date + rounded
+// lat/lon + model) for targetDate under the supplied settings snapshot.
+func occurrenceCacheKey(targetDate time.Time, settings *conf.Settings) string {
+	return fmt.Sprintf("%s|%.4f,%.4f|%s",
+		targetDate.Format(time.DateOnly),
 		settings.BirdNET.Latitude,
 		settings.BirdNET.Longitude,
 		settings.BirdNET.RangeFilter.Model,
 	)
+}
+
+// currentCacheEntryLocked returns the published occurrence index for cacheKey when
+// it was computed under generation gen, and false otherwise. The caller must hold
+// speciesCacheMu (read or write). The returned map is shared and read-only: a
+// published entry is never mutated after it is stored, so it may be read for as long
+// as the caller likes, but must never be written to.
+func (rfs *rangeFilterService) currentCacheEntryLocked(cacheKey string, gen uint64) (map[string]float64, bool) {
+	entry, ok := rfs.speciesCache[cacheKey]
+	if !ok || entry.key != cacheKey || entry.generation != gen {
+		return nil, false
+	}
+	return entry.scores, true
+}
+
+// getCachedSpeciesScores returns occurrence scores with per-day caching, ported
+// verbatim from BirdNET.getCachedSpeciesScores (the cache lives on the service now).
+// The caller supplies the settings snapshot so the cache key and the scored
+// prediction use one consistent generation. The returned map is a private copy the
+// caller owns; the per-detection path uses cachedOccurrence instead, which looks the
+// species up in the shared index without copying it.
+func (rfs *rangeFilterService) getCachedSpeciesScores(targetDate time.Time, settings *conf.Settings) (map[string]float64, error) {
+	cacheKey := occurrenceCacheKey(targetDate, settings)
 
 	// FAST PATH: read under RLock and return a defensive copy. Serve an entry only
 	// while its generation matches the currently-published backend generation. reload
@@ -816,14 +835,52 @@ func (rfs *rangeFilterService) getCachedSpeciesScores(targetDate time.Time, sett
 	// reader that observes the new state also observes the new generation.
 	curGen := rfs.loadState().generation
 	rfs.speciesCacheMu.RLock()
-	if entry, ok := rfs.speciesCache[cacheKey]; ok && entry.key == cacheKey && entry.generation == curGen {
-		out := make(map[string]float64, len(entry.scores))
-		maps.Copy(out, entry.scores)
+	if scores, ok := rfs.currentCacheEntryLocked(cacheKey, curGen); ok {
+		out := maps.Clone(scores)
 		rfs.speciesCacheMu.RUnlock()
 		return out, nil
 	}
 	rfs.speciesCacheMu.RUnlock()
 
+	scores, err := rfs.fillOccurrenceCache(cacheKey, targetDate, settings)
+	if err != nil {
+		return nil, err
+	}
+	return maps.Clone(scores), nil
+}
+
+// cachedOccurrence resolves species against the cached occurrence index for
+// detectionTime without copying the index, which holds thousands of entries (raw
+// plus canonical keys) and is consulted on every detection. It applies the same
+// cache key and generation gate as getCachedSpeciesScores (see the FAST PATH comment
+// there) and, on a miss, the same compute-and-store path. found reports whether the
+// index has an entry for species.
+func (rfs *rangeFilterService) cachedOccurrence(detectionTime time.Time, species string, settings *conf.Settings) (occurrence float64, found bool, err error) {
+	cacheKey := occurrenceCacheKey(detectionTime, settings)
+
+	curGen := rfs.loadState().generation
+	rfs.speciesCacheMu.RLock()
+	if scores, ok := rfs.currentCacheEntryLocked(cacheKey, curGen); ok {
+		occurrence, found = lookupOccurrence(scores, species)
+		rfs.speciesCacheMu.RUnlock()
+		return occurrence, found, nil
+	}
+	rfs.speciesCacheMu.RUnlock()
+
+	scores, err := rfs.fillOccurrenceCache(cacheKey, detectionTime, settings)
+	if err != nil {
+		return 0, false, err
+	}
+	occurrence, found = lookupOccurrence(scores, species)
+	return occurrence, found, nil
+}
+
+// fillOccurrenceCache is the cache MISS path shared by getCachedSpeciesScores and
+// cachedOccurrence: it scores targetDate, then publishes the index under cacheKey
+// unless a reload swapped the backend across the prediction. The returned map is
+// read-only: it is either a published cache entry or a fresh index that may be
+// published, and published entries must never be mutated after store.
+func (rfs *rangeFilterService) fillOccurrenceCache(cacheKey string, targetDate time.Time, settings *conf.Settings) (map[string]float64, error) {
 	// MISS PATH: use the same settings snapshot as the cache key. probableSpecies scores
 	// against its own locked snapshot; take genBefore FROM that snapshot rather than a
 	// separate pre-call loadState, so the write-path genBefore == genNow check reflects the
@@ -838,12 +895,10 @@ func (rfs *rangeFilterService) getCachedSpeciesScores(targetDate time.Time, sett
 
 	// WRITE PATH: double-check, evict old entries, publish new results.
 	rfs.speciesCacheMu.Lock()
+	defer rfs.speciesCacheMu.Unlock()
 	genNow := rfs.loadState().generation
-	if entry, ok := rfs.speciesCache[cacheKey]; ok && entry.key == cacheKey && entry.generation == genNow {
-		out := make(map[string]float64, len(entry.scores))
-		maps.Copy(out, entry.scores)
-		rfs.speciesCacheMu.Unlock()
-		return out, nil
+	if cached, ok := rfs.currentCacheEntryLocked(cacheKey, genNow); ok {
+		return cached, nil
 	}
 	// Cache only when no reload swapped the backend across the prediction. generation is
 	// monotonic and written only under rfs.mu, so genBefore == genNow proves
@@ -866,10 +921,7 @@ func (rfs *rangeFilterService) getCachedSpeciesScores(targetDate time.Time, sett
 			generation: genNow,
 		}
 	}
-	out := make(map[string]float64, len(scores))
-	maps.Copy(out, scores)
-	rfs.speciesCacheMu.Unlock()
-	return out, nil
+	return scores, nil
 }
 
 // occurrenceAtTime returns the occurrence probability for a species at a specific
@@ -886,12 +938,10 @@ func (rfs *rangeFilterService) occurrenceAtTime(species string, detectionTime ti
 		return 0.0
 	}
 
-	// Try cached scores first.
-	cachedScores, err := rfs.getCachedSpeciesScores(detectionTime, settings)
-	if err == nil && len(cachedScores) > 0 {
-		if occurrence, found := lookupOccurrence(cachedScores, species); found {
-			return clampOccurrence(occurrence)
-		}
+	// Try cached scores first, looking the species up in place rather than copying
+	// the whole index on every detection.
+	if occurrence, found, err := rfs.cachedOccurrence(detectionTime, species, settings); err == nil && found {
+		return clampOccurrence(occurrence)
 	}
 
 	// Fallback on cache miss. Anchor to the local calendar day (matching
