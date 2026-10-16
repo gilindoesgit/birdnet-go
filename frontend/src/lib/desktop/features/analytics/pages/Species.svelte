@@ -15,6 +15,7 @@
   import { buildSpeciesSearchUrl } from '$lib/utils/detectionUrls';
   import { handleBirdImageError } from '$lib/desktop/components/ui/image-utils';
   import { handleAppLinkClick } from '$lib/stores/navigation.svelte';
+  import { useMediaQuery } from '$lib/utils/mediaQuery.svelte';
   import { Bird, ExternalLink, Gauge, Gem, Sparkles } from '@lucide/svelte';
   import { onMount, onDestroy } from 'svelte';
   import SortableHeader from '$lib/desktop/components/ui/SortableHeader.svelte';
@@ -78,6 +79,10 @@
   // Shown in place of a value the page cannot compute, e.g. the rarest species
   // before a station location is configured.
   const EM_DASH = '\u2014';
+
+  // Width from which the desktop grid/table replace the phone cards: Tailwind's
+  // `sm` breakpoint, which the layouts and the view toggle are styled around.
+  const WIDE_VIEWPORT_QUERY = '(min-width: 640px)';
 
   // Species name defaults to ascending (A→Z); every other column defaults to
   // descending (most/highest/most recent first) on first click.
@@ -389,6 +394,35 @@
       return ascending ? da.getTime() - db.getTime() : db.getTime() - da.getTime();
     };
   }
+
+  // Only the layout that is on screen is mounted. Both the phone cards and the
+  // desktop grid/table used to be built, one hidden with `sm:hidden`, so every
+  // species was rendered twice: two components and two thumbnail requests per
+  // species, half of them for markup nobody could see. The breakpoint matches
+  // the `sm:` one the layouts and the view toggle use.
+  const isWideViewport = useMediaQuery(WIDE_VIEWPORT_QUERY);
+
+  // Stable {#each} key per species row. Keying by index made every search
+  // keystroke or sort change shift the keys and rebuild every card; keying by
+  // the row's identity lets Svelte move existing cards instead. The scientific
+  // name is unique in practice (both datastores group the summary by it), but
+  // the v2 datastore strips legacy "Scientific_Common" labels after grouping,
+  // so two rows could share a name; a duplicate key would throw, so repeats get
+  // an ordinal suffix. Keys are assigned per fetch, so filtering and sorting
+  // never change them.
+  let speciesKeys = $derived.by(() => {
+    const keys = new Map<SpeciesData, string>();
+    const seen = new Map<string, number>();
+    for (const species of speciesData) {
+      const occurrence = (seen.get(species.scientific_name) ?? 0) + 1;
+      seen.set(species.scientific_name, occurrence);
+      keys.set(
+        species,
+        occurrence === 1 ? species.scientific_name : `${species.scientific_name}#${occurrence}`
+      );
+    }
+    return keys;
+  });
 
   // Filtered + sorted rows for display. Search and name-sort operate on the
   // visitor-localized common name (displayName) so they match what the user
@@ -770,144 +804,149 @@
         </div>
       {/if}
 
-      <!-- Mobile View - Compact List -->
+      <!-- Grid View: only the layout on screen is mounted -->
       {#if !isLoading && viewMode === 'grid' && filteredSpecies.length > 0}
-        <div class="sm:hidden space-y-2">
-          {#each filteredSpecies as species, index (`${species.scientific_name}_${index}`)}
-            <SpeciesCardMobile {species} variant="compact" onClick={handleSpeciesClick} />
-          {/each}
-        </div>
-      {/if}
-
-      <!-- Desktop Grid View -->
-      {#if !isLoading && viewMode === 'grid' && filteredSpecies.length > 0}
-        <div class="species-grid hidden sm:grid">
-          {#each filteredSpecies as species, index (`${species.scientific_name}_${index}`)}
-            <SpeciesCard {species} />
-          {/each}
-        </div>
+        {#if isWideViewport.matches}
+          <div class="species-grid">
+            {#each filteredSpecies as species (speciesKeys.get(species))}
+              <SpeciesCard {species} />
+            {/each}
+          </div>
+        {:else}
+          <!-- Narrow viewports: compact list -->
+          <div class="space-y-2">
+            {#each filteredSpecies as species (speciesKeys.get(species))}
+              <SpeciesCardMobile {species} variant="compact" onClick={handleSpeciesClick} />
+            {/each}
+          </div>
+        {/if}
       {/if}
 
       <!-- List View -->
       {#if !isLoading && viewMode === 'list'}
-        <div class="overflow-x-auto">
-          <table class="table w-full hidden sm:table">
-            <thead>
-              <tr>
-                {#each SORTABLE_COLUMNS as { field, labelKey, width } (field)}
-                  <SortableHeader
-                    label={t(labelKey)}
-                    {field}
-                    activeField={sortField}
-                    direction={sortDirection}
-                    onSort={handleSort}
-                    {width}
-                  />
-                  {#if field === SPECIES_COLUMN_FIELD}
-                    <!-- Not sortable: just the external reference-site icons, kept out
+        {#if isWideViewport.matches}
+          <div class="overflow-x-auto">
+            <table class="table w-full">
+              <thead>
+                <tr>
+                  {#each SORTABLE_COLUMNS as { field, labelKey, width } (field)}
+                    <SortableHeader
+                      label={t(labelKey)}
+                      {field}
+                      activeField={sortField}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                      {width}
+                    />
+                    {#if field === SPECIES_COLUMN_FIELD}
+                      <!-- Not sortable: just the external reference-site icons, kept out
                          of the species cell so it can be one clickable link to the
                          species' filtered detections without nesting anchors. -->
-                    <th scope="col">
-                      <span class="sr-only">{t('analytics.species.headers.links')}</span>
-                    </th>
-                  {/if}
-                {/each}
-              </tr>
-            </thead>
-            <tbody>
-              {#each filteredSpecies as species, index (`${species.scientific_name}_${index}`)}
-                {@const displayName = localizeSpeciesName(
-                  species.scientific_name,
-                  species.common_name
-                )}
-                <tr
-                  class={index % 2 === 0
-                    ? 'bg-[var(--color-base-100)]'
-                    : 'bg-[var(--color-base-200)]'}
-                >
-                  <td>
-                    <a
-                      href={buildSpeciesSearchUrl(species.scientific_name)}
-                      onclick={handleAppLinkClick}
-                      class="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                      aria-label={t('analytics.species.viewDetections', { species: displayName })}
-                      title={t('analytics.species.viewDetections', { species: displayName })}
-                    >
-                      <div class="avatar">
-                        <div class="mask mask-squircle w-12 h-12 bg-[var(--color-base-300)]">
-                          {#if species.thumbnail_url}
-                            <img
-                              src={species.thumbnail_url}
-                              alt={displayName}
-                              class="h-full w-full object-cover"
-                              onerror={handleBirdImageError}
-                            />
-                          {/if}
-                        </div>
-                      </div>
-                      <div>
-                        <div class="font-bold sp-species-name">{displayName}</div>
-                        <div class="text-sm opacity-50 italic">{species.scientific_name}</div>
-                      </div>
-                    </a>
-                  </td>
-                  <td>
-                    <div class="flex items-center gap-1">
-                      {#if hasSpeciesReferenceName(species.common_name)}
-                        <a
-                          href={getAllAboutBirdsUrl(species.common_name)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="btn btn-ghost btn-sm btn-square"
-                          aria-label={`${t('analytics.species.openAllAboutBirds')}: ${displayName}`}
-                          title={t('analytics.species.openAllAboutBirds')}
-                        >
-                          <ExternalLink class="size-4" />
-                        </a>
-                      {/if}
-                      {#if hasSpeciesReferenceName(displayName)}
-                        <a
-                          href={getWikipediaUrl(displayName, getLocale(), species.common_name)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="btn btn-ghost btn-sm btn-square"
-                          aria-label={`${t('analytics.species.openWikipedia')}: ${displayName}`}
-                          title={t('analytics.species.openWikipedia')}
-                        >
-                          <span class="text-xs font-serif font-bold">W</span>
-                        </a>
-                      {/if}
-                    </div>
-                  </td>
-                  <td class="font-semibold">{species.count}</td>
-                  <td>
-                    <div class="flex items-center gap-2">
-                      <progress
-                        class="progress w-20 {species.avg_confidence >= 0.8
-                          ? 'progress-success'
-                          : species.avg_confidence >= 0.4
-                            ? 'progress-warning'
-                            : 'progress-error'}"
-                        value={species.avg_confidence}
-                        max="1"
-                      ></progress>
-                      <span class="text-sm">{formatPercentage(species.avg_confidence)}</span>
-                    </div>
-                  </td>
-                  <td>{formatPercentage(species.max_confidence)}</td>
-                  <td class="text-sm">{formatDateTime(species.first_heard)}</td>
-                  <td class="text-sm">{formatDateTime(species.last_heard)}</td>
+                      <th scope="col">
+                        <span class="sr-only">{t('analytics.species.headers.links')}</span>
+                      </th>
+                    {/if}
+                  {/each}
                 </tr>
-              {/each}
-            </tbody>
-          </table>
-          <!-- Mobile list view -->
-          <div class="sm:hidden space-y-2">
-            {#each filteredSpecies as species, index (`${species.scientific_name}_${index}`)}
+              </thead>
+              <tbody>
+                {#each filteredSpecies as species, index (speciesKeys.get(species))}
+                  {@const displayName = localizeSpeciesName(
+                    species.scientific_name,
+                    species.common_name
+                  )}
+                  <tr
+                    class={index % 2 === 0
+                      ? 'bg-[var(--color-base-100)]'
+                      : 'bg-[var(--color-base-200)]'}
+                  >
+                    <td>
+                      <a
+                        href={buildSpeciesSearchUrl(species.scientific_name)}
+                        onclick={handleAppLinkClick}
+                        class="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                        aria-label={t('analytics.species.viewDetections', { species: displayName })}
+                        title={t('analytics.species.viewDetections', { species: displayName })}
+                      >
+                        <div class="avatar">
+                          <div class="mask mask-squircle w-12 h-12 bg-[var(--color-base-300)]">
+                            {#if species.thumbnail_url}
+                              <img
+                                src={species.thumbnail_url}
+                                alt={displayName}
+                                class="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                                onerror={handleBirdImageError}
+                              />
+                            {/if}
+                          </div>
+                        </div>
+                        <div>
+                          <div class="font-bold sp-species-name">{displayName}</div>
+                          <div class="text-sm opacity-50 italic">{species.scientific_name}</div>
+                        </div>
+                      </a>
+                    </td>
+                    <td>
+                      <div class="flex items-center gap-1">
+                        {#if hasSpeciesReferenceName(species.common_name)}
+                          <a
+                            href={getAllAboutBirdsUrl(species.common_name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-ghost btn-sm btn-square"
+                            aria-label={`${t('analytics.species.openAllAboutBirds')}: ${displayName}`}
+                            title={t('analytics.species.openAllAboutBirds')}
+                          >
+                            <ExternalLink class="size-4" />
+                          </a>
+                        {/if}
+                        {#if hasSpeciesReferenceName(displayName)}
+                          <a
+                            href={getWikipediaUrl(displayName, getLocale(), species.common_name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-ghost btn-sm btn-square"
+                            aria-label={`${t('analytics.species.openWikipedia')}: ${displayName}`}
+                            title={t('analytics.species.openWikipedia')}
+                          >
+                            <span class="text-xs font-serif font-bold">W</span>
+                          </a>
+                        {/if}
+                      </div>
+                    </td>
+                    <td class="font-semibold">{species.count}</td>
+                    <td>
+                      <div class="flex items-center gap-2">
+                        <progress
+                          class="progress w-20 {species.avg_confidence >= 0.8
+                            ? 'progress-success'
+                            : species.avg_confidence >= 0.4
+                              ? 'progress-warning'
+                              : 'progress-error'}"
+                          value={species.avg_confidence}
+                          max="1"
+                        ></progress>
+                        <span class="text-sm">{formatPercentage(species.avg_confidence)}</span>
+                      </div>
+                    </td>
+                    <td>{formatPercentage(species.max_confidence)}</td>
+                    <td class="text-sm">{formatDateTime(species.first_heard)}</td>
+                    <td class="text-sm">{formatDateTime(species.last_heard)}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {:else}
+          <!-- Narrow viewports: list cards -->
+          <div class="space-y-2">
+            {#each filteredSpecies as species (speciesKeys.get(species))}
               <SpeciesCardMobile {species} variant="list" onClick={handleSpeciesClick} />
             {/each}
           </div>
-        </div>
+        {/if}
       {/if}
 
       <!-- Empty State -->

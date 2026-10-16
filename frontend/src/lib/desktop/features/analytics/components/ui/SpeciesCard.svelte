@@ -57,6 +57,8 @@
           src={species.thumbnail_url}
           alt={displayName}
           class="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
           onerror={handleBirdImageError}
         />
       {/if}

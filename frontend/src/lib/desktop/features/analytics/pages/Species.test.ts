@@ -41,6 +41,27 @@ function mockFetchSequence(handlers: Record<string, () => unknown>) {
 
 const speciesTest = createComponentTestFactory(Species);
 
+/**
+ * Make `useMediaQuery` report a wide (tablet/desktop) or narrow (phone)
+ * viewport. The global jsdom stub in src/test/setup.ts always reports no
+ * match, which the page treats as a phone; restored by vi.restoreAllMocks().
+ */
+function mockViewport(wide: boolean) {
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query: string) =>
+      ({
+        matches: wide,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList
+  );
+}
+
 describe('Species (analytics page)', () => {
   const originalFetch = globalThis.fetch;
 
@@ -140,6 +161,8 @@ describe('Species (analytics page) — sortable column headers', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // The sortable table is the tablet/desktop layout.
+    mockViewport(true);
     globalThis.fetch = mockFetchSequence({
       '/api/v2/analytics/species/summary': () => summary,
     });
@@ -220,5 +243,115 @@ describe('Species (analytics page) — sortable column headers', () => {
     expect(
       container.querySelectorAll('table thead th')[COUNT_TH_INDEX].getAttribute('aria-sort')
     ).toBe('ascending');
+  });
+
+  it('moves existing rows on a sort change instead of rebuilding them', async () => {
+    const { container } = await renderListView();
+    const rowFor = (name: string) =>
+      Array.from(container.querySelectorAll('table tbody tr')).find(
+        tr => tr.querySelector('.sp-species-name')?.textContent.trim() === name
+      );
+    const blueJayRow = rowFor('Blue Jay');
+    expect(blueJayRow).toBeDefined();
+
+    await fireEvent.click(container.querySelectorAll('table thead th button')[COUNT_BUTTON_INDEX]);
+
+    expect(rowNames(container)).toEqual(['American Robin', 'Zebra Finch', 'Blue Jay']);
+    // Rows are keyed by species, not by position, so the same element survives.
+    expect(rowFor('Blue Jay')).toBe(blueJayRow);
+  });
+});
+
+describe('Species (analytics page) — mounts only the layout on screen', () => {
+  const originalFetch = globalThis.fetch;
+  const TABLE_VIEW_TOGGLE_INDEX = 1;
+
+  const summary: SpeciesSummary[] = [
+    {
+      common_name: 'American Robin',
+      scientific_name: 'Turdus migratorius',
+      count: 5,
+      avg_confidence: 0.8,
+      max_confidence: 0.9,
+      first_heard: '2026-04-01',
+      last_heard: '2026-04-20',
+      thumbnail_url: '/api/v2/media/image/Turdus%20migratorius',
+    },
+    {
+      common_name: 'Blue Jay',
+      scientific_name: 'Cyanocitta cristata',
+      count: 99,
+      avg_confidence: 0.7,
+      max_confidence: 0.95,
+      first_heard: '2026-04-05',
+      last_heard: '2026-04-25',
+      thumbnail_url: '/api/v2/media/image/Cyanocitta%20cristata',
+    },
+  ];
+
+  beforeEach(() => {
+    globalThis.fetch = mockFetchSequence({
+      '/api/v2/analytics/species/summary': () => summary,
+      // Answered so the rarity card's fetch settles instead of rejecting.
+      '/api/v2/range/status': () => ({ locationConfigured: false }),
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  async function waitForImages(container: HTMLElement) {
+    return waitFor(
+      () => {
+        const imgs = container.querySelectorAll('img');
+        if (imgs.length === 0) throw new Error('species not yet rendered');
+        return imgs;
+      },
+      { timeout: 2000 }
+    );
+  }
+
+  it('renders only the desktop grid on a wide viewport', async () => {
+    mockViewport(true);
+    const { container } = speciesTest.render({});
+    const imgs = await waitForImages(container);
+
+    expect(container.querySelector('.species-grid')).not.toBeNull();
+    // One card (and one thumbnail request) per species, not a hidden phone copy too.
+    expect(imgs).toHaveLength(summary.length);
+    // The phone cards are buttons; the desktop cards are not.
+    expect(container.querySelector('.space-y-2 > button')).toBeNull();
+    for (const img of imgs) {
+      expect(img.getAttribute('loading')).toBe('lazy');
+      expect(img.getAttribute('decoding')).toBe('async');
+    }
+  });
+
+  it('renders only the phone list on a narrow viewport', async () => {
+    mockViewport(false);
+    const { container } = speciesTest.render({});
+    const imgs = await waitForImages(container);
+
+    expect(container.querySelector('.species-grid')).toBeNull();
+    expect(imgs).toHaveLength(summary.length);
+    expect(container.querySelectorAll('.space-y-2 > button')).toHaveLength(summary.length);
+  });
+
+  it('renders only the table in list view on a wide viewport', async () => {
+    mockViewport(true);
+    const { container } = speciesTest.render({});
+    await waitForImages(container);
+
+    await fireEvent.click(container.querySelectorAll('.join button')[TABLE_VIEW_TOGGLE_INDEX]);
+    await waitFor(() => {
+      if (!container.querySelector('table tbody tr')) throw new Error('table not yet rendered');
+    });
+
+    expect(container.querySelectorAll('table tbody tr')).toHaveLength(summary.length);
+    expect(container.querySelectorAll('img')).toHaveLength(summary.length);
+    expect(container.querySelector('.space-y-2 > button')).toBeNull();
   });
 });
