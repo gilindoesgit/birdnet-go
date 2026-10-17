@@ -19,7 +19,6 @@
 </script>
 
 <script lang="ts">
-  import type { TimeOfDayValue } from '$lib/types/detection.types';
   import { cn } from '$lib/utils/cn';
   import { safeGet } from '$lib/utils/security';
   import { Clock } from '@lucide/svelte';
