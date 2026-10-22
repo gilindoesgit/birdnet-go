@@ -240,9 +240,9 @@ func setDefaultConfig() {
 	viper.SetDefault("realtime.birdweather.threshold", 0.7)
 	viper.SetDefault("realtime.birdweather.locationaccuracy", 0)
 	viper.SetDefault("realtime.birdweather.retrysettings.enabled", true)
-	viper.SetDefault("realtime.birdweather.retrysettings.maxretries", 10)
-	viper.SetDefault("realtime.birdweather.retrysettings.initialdelay", 60)
-	viper.SetDefault("realtime.birdweather.retrysettings.maxdelay", 3600)
+	viper.SetDefault("realtime.birdweather.retrysettings.maxretries", 3)
+	viper.SetDefault("realtime.birdweather.retrysettings.initialdelay", 30)
+	viper.SetDefault("realtime.birdweather.retrysettings.maxdelay", 600)
 	viper.SetDefault("realtime.birdweather.retrysettings.backoffmultiplier", 2.0)
 
 	// eBird configuration
@@ -314,7 +314,7 @@ func setDefaultConfig() {
 	viper.SetDefault("realtime.privacyfilter.debug", false)
 	viper.SetDefault("realtime.privacyfilter.confidence", 0.05)
 	viper.SetDefault("realtime.privacyfilter.vad.enabled", false)
-	viper.SetDefault("realtime.privacyfilter.vad.threshold", 0.35)
+	viper.SetDefault("realtime.privacyfilter.vad.threshold", 0.6)
 	viper.SetDefault("realtime.privacyfilter.vad.modelpath", "")
 
 	// Dog bark filter configuration
@@ -413,6 +413,7 @@ func setDefaultConfig() {
 	viper.SetDefault("security.allowsubnetbypass.enabled", false)
 	viper.SetDefault("security.allowsubnetbypass.subnet", "")
 	viper.SetDefault("security.trustedproxies", []string{})
+	viper.SetDefault("security.plainhttpsessionclients", []string{})
 	viper.SetDefault("security.publicaccess.liveaudio", false)
 	viper.SetDefault("security.sessionduration", "168h") // 7 days
 

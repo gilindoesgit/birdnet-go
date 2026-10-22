@@ -15,6 +15,7 @@
     image is shown without a player
   - timestamp: detection timestamp, used to label extracted clips
   - modelType: model that produced the detection, forwarded to the audio player
+  - clipSampleRate: sample rate of the saved clip in Hz, forwarded to the audio player
   - rowId: id of the expanded <tr>, referenced by the image's aria-controls
   - onCollapse: called when the image is activated, collapsing the row again
 -->
@@ -45,6 +46,7 @@
     spectrogramOnly?: boolean;
     timestamp?: string;
     modelType?: string;
+    clipSampleRate?: number;
     rowId: string;
     onCollapse: () => void;
   }
@@ -58,6 +60,7 @@
     spectrogramOnly = false,
     timestamp,
     modelType,
+    clipSampleRate,
     rowId,
     onCollapse,
   }: Props = $props();
@@ -181,6 +184,7 @@
         enableClipExtraction={clipExtractionEnabled}
         clipLabel={`${commonName}_${(timestamp ?? '').replace(/[: ]/g, '-')}`}
         {modelType}
+        {clipSampleRate}
       />
     </div>
   {:else if spectrogramOnly}

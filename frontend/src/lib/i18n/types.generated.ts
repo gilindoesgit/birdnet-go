@@ -437,6 +437,10 @@ export type TranslationKey =
   | 'notifications.content.analysis.cadenceCappedMessage' // params: models, sources, configured, effective
   | 'notifications.content.analysis.cadenceOverloadedTitle'
   | 'notifications.content.analysis.cadenceOverloadedMessage' // params: models, sources
+  | 'notifications.content.storage.notPersistentTitle'
+  | 'notifications.content.storage.notPersistentMessage' // params: paths
+  | 'notifications.content.storage.anonymousVolumeTitle'
+  | 'notifications.content.storage.anonymousVolumeMessage' // params: paths
   | 'notifications.loading'
   | 'search.title'
   | 'search.results'
@@ -2209,6 +2213,9 @@ export type TranslationKey =
   | 'settings.notifications.push.filters.speciesCooldown.label'
   | 'settings.notifications.push.filters.speciesCooldown.unit'
   | 'settings.notifications.push.filters.speciesCooldown.helpText'
+  | 'settings.notifications.push.rulesNotice.message' // params: pushAction, ruleName, eventName
+  | 'settings.notifications.push.rulesNotice.previousFilters' // params: confidence, minutes
+  | 'settings.notifications.push.rulesNotice.openRules'
   | 'settings.notifications.push.noProviders'
   | 'settings.notifications.push.noProvidersDescription'
   | 'settings.notifications.push.providers.title'
@@ -2404,8 +2411,6 @@ export type TranslationKey =
   | 'settings.filters.errors.speciesLoadFailed'
   | 'settings.integration.birdweather.title'
   | 'settings.integration.birdweather.description'
-  | 'settings.integration.birdweather.ffmpegWarning.title'
-  | 'settings.integration.birdweather.ffmpegWarning.message'
   | 'settings.integration.birdweather.enable'
   | 'settings.integration.birdweather.token.label'
   | 'settings.integration.birdweather.token.helpText'
@@ -2759,21 +2764,35 @@ export type TranslationKey =
   | 'settings.audio.audioFilters.frequencyResponse'
   | 'settings.audio.audioFilters.cutoffFrequency'
   | 'settings.audio.audioFilters.cutoffFrequencyHelp'
+  | 'settings.audio.audioFilters.centerFrequency'
+  | 'settings.audio.audioFilters.bandwidth'
   | 'settings.audio.audioFilters.qFactor'
   | 'settings.audio.audioFilters.qFactorHelp'
   | 'settings.audio.audioFilters.gain'
   | 'settings.audio.audioFilters.gainHelp'
   | 'settings.audio.audioFilters.attenuation'
   | 'settings.audio.audioFilters.attenuationHelp'
-  | 'settings.audio.audioFilters.attenuationLevels.0db'
+  | 'settings.audio.audioFilters.attenuationLevels.off'
   | 'settings.audio.audioFilters.attenuationLevels.12db'
   | 'settings.audio.audioFilters.attenuationLevels.24db'
   | 'settings.audio.audioFilters.attenuationLevels.36db'
   | 'settings.audio.audioFilters.attenuationLevels.48db'
+  | 'settings.audio.audioFilters.attenuationLevels.custom' // params: db
   | 'settings.audio.audioFilters.filterHelp'
+  | 'settings.audio.audioFilters.emptyEntryRestored'
   | 'settings.audio.audioFilters.graph.flatResponse'
   | 'settings.audio.audioFilters.graph.frequency'
   | 'settings.audio.audioFilters.graph.gain'
+  | 'settings.audio.audioFilters.graph.loading'
+  | 'settings.audio.audioFilters.graph.updating'
+  | 'settings.audio.audioFilters.graph.error'
+  | 'settings.audio.audioFilters.graph.sampleRate' // params: rate
+  | 'settings.audio.audioFilters.graph.clipped' // params: peak
+  | 'settings.audio.audioFilters.graph.skippedHeading' // params: count
+  | 'settings.audio.audioFilters.graph.skippedReasons.unknown_type' // params: number, type, frequency
+  | 'settings.audio.audioFilters.graph.skippedReasons.invalid_parameters' // params: number, type, frequency, rate
+  | 'settings.audio.audioFilters.graph.skippedReasons.add_failed' // params: number, type, frequency
+  | 'settings.audio.audioFilters.graph.skippedReasons.unknown' // params: number, type, frequency
   | 'settings.audio.soundLevelMonitoring.title'
   | 'settings.audio.soundLevelMonitoring.description'
   | 'settings.audio.soundLevelMonitoring.enable'
@@ -3720,6 +3739,7 @@ export type TranslationKey =
   | 'media.audio.loop'
   | 'media.audio.player'
   | 'media.audio.autoplayBlocked'
+  | 'media.audio.hlsLoadFailed'
   | 'media.audio.hlsNotSupported'
   | 'media.audio.streamStarting'
   | 'media.audio.levelFor' // params: source
@@ -3899,6 +3919,7 @@ export type TranslationKey =
   | 'errors.alert.invalidJSON'
   | 'errors.alert.invalidEscalation'
   | 'errors.alert.engineUnavailable'
+  | 'errors.insights.v2Required'
   | 'errors.detection.invalidDate' // params: paramName
   | 'errors.backup.invalidType'
   | 'errors.backup.alreadyRunning'
@@ -4519,6 +4540,8 @@ export type TranslationParams = {
     models: string | number;
     sources: string | number;
   };
+  'notifications.content.storage.notPersistentMessage': { paths: string | number };
+  'notifications.content.storage.anonymousVolumeMessage': { paths: string | number };
   'search.resultsCountOther': { count: string | number };
   'search.review.reviewDetection': { species: string | number };
   'search.detailsPanel.expandDetails': { species: string | number };
@@ -4772,6 +4795,15 @@ export type TranslationParams = {
   'settings.notifications.templates.saveError': { message: string | number };
   'settings.notifications.testNotification.statusMessages.error': { message: string | number };
   'settings.notifications.statusMessages.error': { message: string | number };
+  'settings.notifications.push.rulesNotice.message': {
+    pushAction: string | number;
+    ruleName: string | number;
+    eventName: string | number;
+  };
+  'settings.notifications.push.rulesNotice.previousFilters': {
+    confidence: string | number;
+    minutes: string | number;
+  };
   'settings.notifications.push.providers.urlsPreview': { count: string | number };
   'settings.notifications.push.providers.deleteConfirm': { name: string | number };
   'settings.notifications.push.test.error': { message: string | number };
@@ -4791,6 +4823,31 @@ export type TranslationParams = {
   'settings.audio.streams.format.withSampleRate': {
     rate: string | number;
     channels: string | number;
+  };
+  'settings.audio.audioFilters.attenuationLevels.custom': { db: string | number };
+  'settings.audio.audioFilters.graph.sampleRate': { rate: string | number };
+  'settings.audio.audioFilters.graph.clipped': { peak: string | number };
+  'settings.audio.audioFilters.graph.skippedHeading': { count: string | number };
+  'settings.audio.audioFilters.graph.skippedReasons.unknown_type': {
+    number: string | number;
+    type: string | number;
+    frequency: string | number;
+  };
+  'settings.audio.audioFilters.graph.skippedReasons.invalid_parameters': {
+    number: string | number;
+    type: string | number;
+    frequency: string | number;
+    rate: string | number;
+  };
+  'settings.audio.audioFilters.graph.skippedReasons.add_failed': {
+    number: string | number;
+    type: string | number;
+    frequency: string | number;
+  };
+  'settings.audio.audioFilters.graph.skippedReasons.unknown': {
+    number: string | number;
+    type: string | number;
+    frequency: string | number;
   };
   'settings.audio.clipRecording.preCaptureHelp': { max: string | number };
   'settings.audio.clipRecording.bitrateHelp': { min: string | number; max: string | number };

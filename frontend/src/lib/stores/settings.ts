@@ -214,7 +214,6 @@ export interface AudioSettings {
   sources: AudioSourceConfig[];
   source: string; // legacy single source, kept for backward compat
   ffmpegPath?: string;
-  soxPath?: string;
   streamTransport?: string;
   export: ExportSettings;
   soundLevel: SoundLevelSettings;
@@ -330,13 +329,12 @@ export interface EqualizerSettings {
 export type EqualizerFilterType = 'HighPass' | 'LowPass' | 'BandReject';
 
 export interface EqualizerFilter {
-  id: string;
   type: EqualizerFilterType;
   frequency: number;
   q?: number;
   width?: number; // Bandwidth in Hz (for BandReject)
   gain?: number;
-  passes?: number; // Number of filter passes (1=12dB, 2=24dB, 3=36dB, 4=48dB)
+  passes?: number; // Number of filter passes: 0 = off; 1 or more applies it that many times; the backend skips a negative value or one above its limit (the editor offers 0 to 4)
 }
 
 export interface ExportSettings {
@@ -751,7 +749,7 @@ export type SpectrogramMode = 'auto' | 'prerender' | 'user-requested';
 // Spectrogram style preset options
 export type SpectrogramStyle = 'default' | 'scientific_dark' | 'high_contrast_dark' | 'scientific';
 
-// Spectrogram dynamic range preset options (dB values for Sox -z parameter)
+// Spectrogram dynamic range preset options (dynamic range in dB)
 // Lower values = higher contrast (weak signals visible), higher values = more detail
 export type SpectrogramDynamicRange = '80' | '100' | '120';
 
@@ -1016,7 +1014,6 @@ function createEmptySettings(): SettingsFormData & { security: SecuritySettings 
         sources: [],
         source: '',
         ffmpegPath: '',
-        soxPath: '',
         streamTransport: 'auto',
         export: {
           type: 'wav',
@@ -1057,7 +1054,7 @@ function createEmptySettings(): SettingsFormData & { security: SecuritySettings 
         debug: false,
         vad: {
           enabled: false,
-          threshold: 0.35,
+          threshold: 0.6,
           modelPath: '',
         },
       },

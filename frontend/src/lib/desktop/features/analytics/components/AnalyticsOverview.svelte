@@ -743,6 +743,7 @@
                           spectrogramOnly={detection.spectrogramOnly}
                           timestamp={detection.timestamp}
                           modelType={detection.modelType}
+                          clipSampleRate={detection.clipSampleRate}
                           rowId="analytics-expanded-row-{detection.id}"
                           onCollapse={() => toggleExpand(detection.id)}
                         />
