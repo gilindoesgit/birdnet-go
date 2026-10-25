@@ -79,9 +79,6 @@
 </script>
 
 <div class="phone-detail" aria-label={displayName} role="group" tabindex="-1" data-species-detail>
-  {#if imageUrl}
-    <img src={imageUrl} alt="" class="phone-detail-image" onerror={handleBirdImageError} />
-  {/if}
   <div class="flex items-start gap-2">
     <div class="min-w-0 flex-1">
       <p class="font-medium leading-tight">{displayName}</p>
@@ -96,6 +93,10 @@
       <X class="size-4 text-[var(--color-base-content)]/60" />
     </button>
   </div>
+
+  {#if imageUrl}
+    <img src={imageUrl} alt="" class="phone-detail-image" onerror={handleBirdImageError} />
+  {/if}
 
   <p class="mt-1 text-sm">
     {t('dashboard.newSpeciesHighlights.detections', { count: item.count })}
@@ -159,7 +160,7 @@
   .phone-detail-image {
     width: 100%;
     max-height: 16rem;
-    margin-bottom: 0.5rem;
+    margin-top: 0.5rem;
     object-fit: cover;
     border-radius: 0.375rem;
   }

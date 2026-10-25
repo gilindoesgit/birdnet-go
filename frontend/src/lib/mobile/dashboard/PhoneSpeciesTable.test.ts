@@ -130,9 +130,12 @@ describe('PhoneSpeciesTable', () => {
   it('shows a large species picture in the expanded card only when thumbnails are on', async () => {
     renderTable(rows, true);
     await fireEvent.click(speciesRows()[0]);
-    expect(
-      screen.getByRole('group', { name: 'Raven' }).querySelector('img.phone-detail-image')
-    ).toBeTruthy();
+    const card = screen.getByRole('group', { name: 'Raven' });
+    const image = card.querySelector('img.phone-detail-image');
+    if (!image) throw new Error('expanded card has no species picture');
+    // The name stays at the top, where the collapsed row was, with the picture below it.
+    const name = screen.getByText('Corvus corax');
+    expect(name.compareDocumentPosition(image) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     cleanup();
 
     renderTable(rows, false);
